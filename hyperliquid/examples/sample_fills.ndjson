@@ -1,0 +1,12 @@
+{"coin":"BTC","dir":"Open Long","px":95000.0,"startPosition":0.0,"sz":2.0,"ts":1759300000,"type":"fill","user":"0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
+{"coin":"BTC","px":95800.0,"ts":1759300600,"type":"mark"}
+{"coin":"SOL","dir":"Open Long","px":200.0,"startPosition":0.0,"sz":10.0,"ts":1759300700,"type":"fill","user":"0xcccccccccccccccccccccccccccccccccccccccc"}
+{"coin":"ETH","dir":"Open Short","px":4000.0,"startPosition":0.0,"sz":5.0,"ts":1759300800,"type":"fill","user":"0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}
+{"coin":"BTC","px":96500.0,"ts":1759301200,"type":"mark"}
+{"coin":"SOL","px":210.0,"ts":1759301300,"type":"mark"}
+{"coin":"BTC","dir":"Close Long","px":96200.0,"startPosition":2.0,"sz":1.0,"ts":1759301400,"type":"fill","user":"0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
+{"coin":"BTC","px":95000.0,"ts":1759302000,"type":"mark"}
+{"coin":"BTC","dir":"Close Long","px":94900.0,"startPosition":1.0,"sz":1.0,"ts":1759302600,"type":"fill","user":"0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
+{"coin":"ETH","px":3900.0,"ts":1759303000,"type":"mark"}
+{"coin":"ETH","dir":"Close Short","px":3920.0,"startPosition":-5.0,"sz":5.0,"ts":1759303200,"type":"fill","user":"0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}
+{"ts":1759304000,"type":"tick"}
