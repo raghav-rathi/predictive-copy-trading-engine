@@ -1,0 +1,135 @@
+{
+ "generated_ts": "2026-10-02T08:11:13.598259+00:00",
+ "variant": "B",
+ "variant_label": "no-trailing + kelly_fraction 0.5",
+ "window_days": 30,
+ "targets": [
+  "winning-fortunes",
+  "GeorgV Copytrading",
+  "Kairos Fi",
+  "Aquila Chrysaetos"
+ ],
+ "total": {
+  "trades": 1559,
+  "wins": 778,
+  "losses": 733,
+  "win_rate": 0.499,
+  "total_pnl_net": -171.06,
+  "total_fees": 22.77,
+  "max_drawdown": 5.1308
+ },
+ "shadow_total": {
+  "trades": 3409,
+  "wins": 1504,
+  "losses": 1905,
+  "win_rate": 0.4412,
+  "total_pnl_net": -518.19,
+  "total_fees": 750.11,
+  "max_drawdown": 7.927
+ },
+ "skipped_signals_total": 3409,
+ "per_vault": {
+  "winning-fortunes": {
+   "trades": 279,
+   "wins": 121,
+   "losses": 158,
+   "win_rate": 0.4337,
+   "total_pnl_net": -208.37,
+   "total_fees": 17.65,
+   "max_drawdown": 8.972,
+   "fills_scored": 4647,
+   "intents": 302,
+   "paper_positions": 128,
+   "copy_days": "31/31",
+   "skipped_signals": 84,
+   "skip_reasons": {
+    "skip:": 84,
+    "already_positioned": 90
+   },
+   "shadow_trades": 84,
+   "shadow_pnl_net": 369.73,
+   "shadow_win_rate": 0.7143
+  },
+  "GeorgV Copytrading": {
+   "trades": 72,
+   "wins": 10,
+   "losses": 61,
+   "win_rate": 0.1389,
+   "total_pnl_net": 47.98,
+   "total_fees": 1.79,
+   "max_drawdown": 0.1215,
+   "fills_scored": 395,
+   "intents": 30,
+   "paper_positions": 21,
+   "copy_days": "31/31",
+   "skipped_signals": 1,
+   "skip_reasons": {
+    "already_positioned": 8,
+    "skip:": 1
+   },
+   "shadow_trades": 1,
+   "shadow_pnl_net": 0.75,
+   "shadow_win_rate": 1.0
+  },
+  "Kairos Fi": {
+   "trades": 1208,
+   "wins": 647,
+   "losses": 514,
+   "win_rate": 0.5356,
+   "total_pnl_net": -10.67,
+   "total_fees": 3.33,
+   "max_drawdown": 10.3629,
+   "fills_scored": 11158,
+   "intents": 4396,
+   "paper_positions": 52,
+   "copy_days": "13/31",
+   "skipped_signals": 3316,
+   "skip_reasons": {
+    "gate:pass": 2373,
+    "already_positioned": 1028,
+    "skip:": 943
+   },
+   "shadow_trades": 3316,
+   "shadow_pnl_net": -878.69,
+   "shadow_win_rate": 0.4343
+  },
+  "Aquila Chrysaetos": {
+   "trades": 0,
+   "wins": 0,
+   "losses": 0,
+   "win_rate": 0.0,
+   "total_pnl_net": 0,
+   "total_fees": 0,
+   "max_drawdown": 0.0,
+   "fills_scored": 503,
+   "intents": 8,
+   "paper_positions": 0,
+   "copy_days": "20/31",
+   "skipped_signals": 8,
+   "skip_reasons": {
+    "skip:": 4,
+    "gate:pass": 4
+   },
+   "shadow_trades": 8,
+   "shadow_pnl_net": -9.98,
+   "shadow_win_rate": 0.375
+  }
+ },
+ "assumptions": {
+  "fee_per_side_pct": 0.055,
+  "paper_equity_usd": 10000.0,
+  "base_size_usd": 200.0,
+  "kelly_fraction": 0.5,
+  "mirror_score_threshold": 65.0,
+  "min_closed_trades": 10,
+  "stops_pct": {
+   "stop_loss": 8.0,
+   "take_profit": 20.0,
+   "trailing": 0.0,
+   "trailing_enabled": false
+  },
+  "max_hold_hours": 24.0,
+  "intent_window_s": 60.0,
+  "candle_interval": "15m"
+ }
+}
