@@ -3,10 +3,15 @@
 
 Two jobs:
 
-1. Load `targets.json`: address -> {label, classification, score, stats,
-   watch, example}. Classifications follow the repo convention:
+1. Load `targets.json`: address -> {label, kind, classification, score,
+   stats, watch, example}. Classifications follow the repo convention:
    copy / fade / pass. `watch: true` marks positive-but-not-yet-copy
-   wallets.
+   wallets. `kind` is "wallet" (default) or "vault": Hyperliquid vaults
+   are queryable by address exactly like wallets (MaxIsOntoSomething),
+   so a vault's equity address can sit in the target list and its
+   `userFills` subscription works the same way — no special-casing in
+   the mirror loop. TODO-verify: vault-address fills via the public WS
+   against a live session.
 
 2. Single-operator clustering. Our Robinhood Chain research proved this
    matters: 6 "whales" were one bot fleet behind a single funder EOA.
@@ -43,8 +48,14 @@ def load_targets(path: str) -> dict[str, dict]:
             print(f"targets error: bad address {w.get('address')!r} in "
                   f"{path}", file=sys.stderr)
             sys.exit(2)
+        kind = str(w.get("kind", "wallet")).lower()
+        if kind not in ("wallet", "vault"):
+            print(f"targets error: bad kind {w.get('kind')!r} for "
+                  f"{addr} (want wallet|vault)", file=sys.stderr)
+            sys.exit(2)
         out[addr] = {
             "label": str(w.get("label", addr)),
+            "kind": kind,
             "classification": str(w.get("classification", "pass")),
             "score": float(w.get("score", 0.0)),
             "watch": bool(w.get("watch", False)),

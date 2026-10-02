@@ -17,15 +17,29 @@ fills against a live response before trusting scores at scale. The
 parsing below is defensive: when a close fill carries no usable `pnl`,
 we fall back to FIFO reconstruction from that wallet's own opens.
 
+Predictive scoring (@slash1sol, CopyGrade): public win-rate
+leaderboards mislead — past luck is not future edge. The score leans
+on forward-looking structure:
+
+  * time-weighted win rate / profit factor: recent closes count more
+    (exponential decay, 90d tau); a wallet whose edge died months ago
+    does not ride old wins into a copy slot
+  * consistency: win-rate distribution across time windows — a 60%
+    winner that was 90% then 30% is decaying, not steady
+  * minimum-sample guard: wallets with fewer than min_closed_trades
+    closed trades are marked "unscored" (score 0.0, classification
+    "pass") and can NEVER be copied, however lucky the sample
+
 Scoring (weights from config, default sum 100):
-  win_rate        30 pts: 30 * min(win_rate / 0.6, 1)
-  profit_factor   25 pts: 25 * min(pf / 2.0, 1), pf = gross_win/gross_loss
-  max_drawdown    20 pts: 20 * max(0, 1 - dd / 0.5), dd from realized equity
+  win_rate        25 pts: 25 * min(weighted_win_rate / 0.6, 1)
+  profit_factor   20 pts: 20 * min(weighted_pf / 2.0, 1)
+  consistency     15 pts: 15 * (1 - 2*stdev(window win rates))
+  max_drawdown    15 pts: 15 * max(0, 1 - dd / 0.5), dd from realized equity
   sample_size     15 pts: 15 * min(closed / 30, 1)
   recency         10 pts: 10 * min(closes_last_30d / 10, 1)
 
 Classification:
-  closed < min_closed_trades        -> "pass" (insufficient data)
+  closed < min_closed_trades        -> "pass" (unscored: never copy)
   score >= mirror_score_threshold   -> "copy"
   score <= fade_score_threshold     -> "fade"
   else                              -> "pass" (watch=True when score >= 50)
@@ -36,6 +50,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import statistics
 import sys
 import time
@@ -174,25 +189,62 @@ def realized_closes(fills: list[dict], fee_rate: float = 0.0) -> list[dict]:
 
 
 def score_wallet(fills: list[dict], weights: dict,
-                 now_s: float | None = None) -> dict:
-    """Score a wallet 0-100 from its fills."""
+                 now_s: float | None = None,
+                 min_closed: int | None = None) -> dict:
+    """Score a wallet 0-100 from its fills (predictive metrics).
+
+    If min_closed is given and the wallet has fewer closed trades, it
+    is returned unscored (score 0.0, "unscored": True) — it can never
+    be copied, however lucky the sample looks.
+    """
     now_s = now_s or time.time()
     closes = realized_closes(fills)
     n = len(closes)
     stats: dict = {"closed": n, "total_pnl_usd": 0.0, "win_rate": 0.0,
                    "profit_factor": 0.0, "max_drawdown": 0.0,
-                   "avg_hold_s": 0.0, "score": 0.0}
+                   "avg_hold_s": 0.0, "score": 0.0, "unscored": False}
     if n == 0:
+        stats["unscored"] = True
         return stats
+    if min_closed is not None and n < min_closed:
+        stats["unscored"] = True
+        return stats
+
+    # Time-decay weights: recent closes count more (90d tau).
+    TAU_S = 90 * DAY_S
+    tsw = [math.exp(-(now_s - c["ts"]) / TAU_S) for c in closes]
     pnls = [c["pnl_usd"] for c in closes]
     stats["total_pnl_usd"] = sum(pnls)
-    wins = [p for p in pnls if p > 0]
-    losses = [-p for p in pnls if p < 0]
-    stats["win_rate"] = len(wins) / n
-    gross_w, gross_l = sum(wins), sum(losses)
-    stats["profit_factor"] = (gross_w / gross_l) if gross_l > 0 else (
-        99.0 if gross_w > 0 else 0.0)
-    # Max drawdown on the realized equity curve.
+
+    wsum = sum(tsw)
+    w_win = sum(w for w, p in zip(tsw, pnls) if p > 0)
+    w_gross_w = sum(w * p for w, p in zip(tsw, pnls) if p > 0)
+    w_gross_l = sum(w * -p for w, p in zip(tsw, pnls) if p < 0)
+    win_rate = w_win / wsum if wsum > 0 else 0.0
+    profit_factor = (w_gross_w / w_gross_l) if w_gross_l > 0 else (
+        99.0 if w_gross_w > 0 else 0.0)
+    stats["win_rate"] = round(win_rate, 4)          # time-weighted
+    stats["profit_factor"] = round(profit_factor, 4)  # time-weighted
+
+    # Consistency: win-rate distribution across time windows. Split the
+    # observed span into 3 windows; a steady 60% beats a decaying
+    # 90%-then-30% with the same average.
+    t0, t1 = min(c["ts"] for c in closes), max(c["ts"] for c in closes)
+    span = max(t1 - t0, 1.0)
+    buckets: list[list[float]] = [[], [], []]
+    for c, w in zip(closes, tsw):
+        idx = min(int((c["ts"] - t0) / span * 3), 2)
+        buckets[idx].append(1.0 if c["pnl_usd"] > 0 else 0.0)
+    rates = [sum(b) / len(b) for b in buckets if b]
+    if len(rates) >= 2:
+        consistency = max(0.0, 1.0 - 2.0 * statistics.pstdev(rates))
+    else:
+        consistency = 1.0  # no evidence of inconsistency
+    stats["consistency"] = round(consistency, 4)
+    stats["window_win_rates"] = [round(r, 3) for r in rates]
+
+    # Max drawdown on the realized equity curve (unweighted: capital is
+    # what it is).
     peak, dd = 0.0, 0.0
     eq = 0.0
     for p in pnls:
@@ -206,14 +258,16 @@ def score_wallet(fills: list[dict], weights: dict,
     stats["avg_hold_s"] = statistics.mean(c["hold_s"] for c in closes)
     recent = sum(1 for c in closes if now_s - c["ts"] <= 30 * DAY_S)
 
-    wr_pts = weights["win_rate"] * min(stats["win_rate"] / 0.6, 1.0)
-    pf_pts = weights["profit_factor"] * min(stats["profit_factor"] / 2.0, 1.0)
+    wr_pts = weights["win_rate"] * min(win_rate / 0.6, 1.0)
+    pf_pts = weights["profit_factor"] * min(profit_factor / 2.0, 1.0)
+    co_pts = weights["consistency"] * consistency
     dd_pts = weights["max_drawdown"] * max(0.0, 1.0 - dd / 0.5)
     n_pts = weights["sample_size"] * min(n / 30.0, 1.0)
     r_pts = weights["recency"] * min(recent / 10.0, 1.0)
-    stats["score"] = round(wr_pts + pf_pts + dd_pts + n_pts + r_pts, 2)
+    stats["score"] = round(wr_pts + pf_pts + co_pts + dd_pts + n_pts + r_pts, 2)
     stats["components"] = {
         "win_rate": round(wr_pts, 2), "profit_factor": round(pf_pts, 2),
+        "consistency": round(co_pts, 2),
         "max_drawdown": round(dd_pts, 2), "sample_size": round(n_pts, 2),
         "recency": round(r_pts, 2)}
     return stats
@@ -221,7 +275,12 @@ def score_wallet(fills: list[dict], weights: dict,
 
 def classify(score: float, closed: int, min_closed: int,
              mirror_thr: float, fade_thr: float) -> tuple[str, bool]:
-    """-> (classification, watch). Thresholds from config."""
+    """-> (classification, watch). Thresholds from config.
+
+    Wallets below min_closed_trades are "pass" regardless of score:
+    unscored wallets can never be copied (score_wallet marks them
+    "unscored" and pins the score to 0.0).
+    """
     if closed < min_closed:
         return "pass", False
     if score >= mirror_thr:
@@ -237,7 +296,7 @@ def score_address(address: str, info_url: str, weights: dict,
     """Fetch, profile, score and classify one wallet."""
     info = HyperliquidInfo(info_url)
     fills = info.user_fills_by_time(address)
-    stats = score_wallet(fills, weights)
+    stats = score_wallet(fills, weights, min_closed=min_closed)
     cls, watch = classify(stats["score"], stats["closed"], min_closed,
                           mirror_thr, fade_thr)
     return {"address": address.lower(), "classification": cls,
