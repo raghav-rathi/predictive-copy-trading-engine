@@ -1,0 +1,3 @@
+# Runtime deps for the Hyperliquid module (stdlib covers everything else).
+# Not installed in this sandbox; install on the deployment host.
+websocket-client>=1.7.0   # WS userFills subscription in mirror.py
