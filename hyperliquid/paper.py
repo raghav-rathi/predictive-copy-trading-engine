@@ -3,8 +3,8 @@
 
 This is the default and intended mode: it replays an NDJSON fill stream
 through the same decision path live trading would use (targets ->
-clustering -> risk -> sizing -> mirror -> exits -> reconcile), opens
-hypothetical positions, and logs everything:
+clustering -> intent aggregation -> risk -> sizing -> mirror -> exits
+-> reconcile), opens hypothetical positions, and logs everything:
 
   * data/hyperliquid_paper_trades.csv — closed trades with PnL (the
     track record the live gate reads);
@@ -23,9 +23,18 @@ sufficient.
 
 Event types (one JSON object per line):
   {"type":"fill","user":"0x..","coin":"BTC","dir":"Open Long",
-   "sz":1.0,"px":95000.0,"startPosition":0.0,"ts":...}
+   "sz":1.0,"px":95000.0,"startPosition":0.0,"ts":...,"hash":"..."}
   {"type":"mark","coin":"BTC","px":95100.0,"ts":...}
-  {"type":"tick","ts":...}   (drives reconcile + max-hold checks)
+  {"type":"tick","ts":...}   (drives intent flushes, exits, reconcile)
+  {"type":"target_positions","user":"0x..",
+   "positions":[{"coin":"BTC","size":1.5}],"ts":...}
+   (startup sync: paper equivalent of reconcile.fetch_all_target_positions)
+
+Fill fragmentation: a leader's entry arrives as many small fills. The
+IntentAggregator groups (user, coin, dir) fills inside
+mirror.intent_window_s into one intent (total size, size-weighted px)
+and dedupes by fill hash, so the engine copies once per intent and
+replays never double-copy.
 
 Usage:
   python3 hyperliquid/paper.py --config hyperliquid/config.example.json \
@@ -45,11 +54,12 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from config import load_config
 from targets import load_targets, cluster_wallets, cluster_vote
-from mirror import decide_fill, TargetBook, EPS
+from mirror import decide_fill, TargetBook, IntentAggregator, EPS
 from sizing import size_copy, kelly_fstar
-from exits import ExitManager
+from exits import ExitManager, synced_close_size
 from reconcile import check_drift
 from risk import Risk
+from notify import build_notifier
 
 PAPER_FIELDS = ["trade_id", "mode", "target", "coin", "side", "entry_ts",
                 "entry_px", "size", "exit_ts", "exit_px", "exit_reason",
@@ -81,13 +91,18 @@ class Paper:
         self.clusters = clusters
         self.votes = self._build_votes()
         self.book = TargetBook()
+        self.intents = IntentAggregator(h["mirror"]["intent_window_s"])
+        self.notifier = build_notifier(cfg)
         self.positions: dict[tuple[str, str], dict] = {}
         self.marks: dict[str, float] = {}
         self.shadows: dict[int, dict] = {}
-        self.risk = Risk(h["risk"], h["mirror"]["coin_whitelist"])
+        self.risk = Risk(h["risk"], h["mirror"]["coin_whitelist"],
+                         notify=self.notifier.emit)
         self.exits = ExitManager(h["exits"]["stop_loss_pct"],
                                  h["exits"]["take_profit_pct"],
-                                 h["exits"]["max_hold_seconds"])
+                                 h["exits"]["max_hold_seconds"],
+                                 h["exits"]["trailing_stop_pct"],
+                                 h["exits"]["max_position_age_seconds"])
         self.next_id = 1
         self.next_shadow = 1
         self.last_reconcile = 0.0
@@ -133,32 +148,87 @@ class Paper:
         return list(stats.get("recent_closes_usd") or [])
 
     def on_fill(self, fill: dict) -> None:
-        self.book.apply(fill)
-        user = str(fill.get("user", "")).lower()
-        coin = str(fill.get("coin", ""))
-        px = float(fill.get("px", 0) or 0)
         ts = float(fill.get("time", fill.get("ts", 0)) or 0)
+        dup, rolled = self.intents.add(fill)
+        if dup:
+            self.decide({"ts": ts or None, "decision": "skip",
+                         "target": str(fill.get("user", ""))[:10] + "...",
+                         "coin": str(fill.get("coin", "")),
+                         "reason": "duplicate_fill"})
+            log(f"duplicate fill dropped for {fill.get('coin')}")
+            return
+        self.book.apply(fill)
+        px = float(fill.get("px", 0) or 0)
         if px > 0:
-            self.marks[coin] = px
+            self.marks[str(fill.get("coin", ""))] = px
+        for intent in rolled + self.intents.flush_expired(ts):
+            self.process_intent(intent)
+
+    def process_intent(self, intent: dict) -> None:
+        """One aggregated intent through the full decision path."""
+        user = str(intent.get("user", "")).lower()
+        coin = str(intent.get("coin", ""))
+        px = float(intent.get("px", 0) or 0)
+        ts = float(intent.get("time", intent.get("ts", 0)) or 0)
 
         def risk_ok(c, notional):
-            return self.risk.check_open(c, notional, ts)
+            return self.risk.check_open(c, notional, user, ts)
 
         def sizer(f, target):
             return size_copy(abs(float(f.get("sz", 0) or 0)), px,
                              self._target_closes(user),
                              self.cfg["hyperliquid"])
 
-        actions = decide_fill(fill, self.targets, self.clusters,
+        actions = decide_fill(intent, self.targets, self.clusters,
                               self.votes, self.cfg["hyperliquid"],
                               risk_ok, sizer)
-        is_open = str(fill.get("dir", "")).startswith("Open")
+        is_open = str(intent.get("dir", "")).startswith("Open")
         for a in actions:
-            self.apply_action(a, fill, shadow_ok=is_open)
+            self.apply_action(a, intent, shadow_ok=is_open)
         # Shadows mirror the target's exits too, whatever the
         # classification was — a skipped signal still resolves.
-        if str(fill.get("dir", "")).startswith("Close"):
+        if str(intent.get("dir", "")).startswith("Close"):
             self.close_shadows_for(user, coin, px, ts, "target_exit")
+
+    # -- startup sync ------------------------------------------------------
+
+    def startup_sync(self, user: str, positions: list[dict],
+                     ts: float) -> None:
+        """Match the leader's existing positions at startup.
+
+        Paper-mode equivalent of reconcile.fetch_all_target_positions
+        (MaxIsOntoSomething): seed the target book and run each existing
+        position through the same decision path as a live fill, sized
+        off the target's position size. Only COPY-classified, whitelisted
+        coins survive decide_fill; everything else becomes a skip.
+        """
+        user = str(user).lower()
+        label = (self.targets.get(user) or {}).get("label", user)
+        for p in positions or []:
+            coin = str(p.get("coin", ""))
+            size = float(p.get("size", p.get("szi", 0)) or 0)
+            if not coin or abs(size) <= EPS:
+                continue
+            self.book.set_position(user, coin, size)
+            key = (user, coin)
+            if key in self.positions:
+                self.decide({"ts": ts or None, "decision": "skip",
+                             "target": label, "coin": coin,
+                             "reason": "startup_sync_already_positioned"})
+                continue
+            mark = self.marks.get(coin)
+            if not mark or mark <= 0:
+                self.decide({"ts": ts or None, "decision": "skip",
+                             "target": label, "coin": coin,
+                             "reason": "startup_sync_no_mark"})
+                continue
+            synth = {"user": user, "coin": coin,
+                     "dir": "Open Long" if size > 0 else "Open Short",
+                     "sz": abs(size), "px": mark, "startPosition": 0.0,
+                     "ts": ts, "time": ts, "synthetic": True,
+                     "fragment_count": 1}
+            log(f"startup sync: {label} holds {coin} {size:+f}; mirroring")
+            self.process_intent(synth)
 
     def apply_action(self, a: dict, fill: dict, shadow_ok: bool = True) -> None:
         kind = a["action"]
@@ -184,6 +254,7 @@ class Paper:
                 return
             self.positions[key] = {
                 "size": a["size"] if a["side"] == "long" else -a["size"],
+                "side": a["side"],
                 "entry_px": a["ref_px"], "entry_ts": ts,
                 "target": user, "label": a.get("label")}
             self.decide({"ts": ts or None, "decision": "open",
@@ -193,6 +264,10 @@ class Paper:
                          "kelly": a.get("kelly"),
                          "slippage_buffer_pct":
                              a.get("slippage_buffer_pct")})
+            self.notifier.emit({"kind": "trade_opened", "ts": ts,
+                                "target": a.get("label"), "coin": coin,
+                                "side": a["side"], "size": a["size"],
+                                "entry_px": a["ref_px"]})
             log(f"PAPER OPEN {coin} {a['side']} {a['size']:.6f} @ "
                 f"{a['ref_px']} (copy of {a.get('label')})")
             return
@@ -201,9 +276,21 @@ class Paper:
             pos = self.positions.get(key)
             if not pos:
                 return
+            # Pre-close state sync: re-read our size from the
+            # authoritative source before the reduce-only close
+            # (Dwellir's CRITICAL point). In paper the ledger is the
+            # source; in live this becomes a fresh clearinghouseState
+            # fetch.
+            fresh = synced_close_size(
+                lambda c: abs((self.positions.get(key) or {})
+                              .get("size", 0.0)), coin)
+            self.decide({"ts": ts or None, "decision": "pre_close_sync",
+                         "target": pos.get("label"), "coin": coin,
+                         "synced_size": round(fresh, 8)})
             self.close_position(key, pos, self.marks.get(coin), ts,
                                 a.get("reason", "target_exit"),
-                                pct=float(a.get("pct", 1.0)))
+                                pct=float(a.get("pct", 1.0)),
+                                fresh_size=fresh)
 
     # -- shadow positions --------------------------------------------------
 
@@ -248,11 +335,13 @@ class Paper:
 
     def close_position(self, key: tuple[str, str], pos: dict,
                        px: float | None, ts: float, reason: str,
-                       pct: float = 1.0) -> None:
+                       pct: float = 1.0, fresh_size: float | None = None) -> None:
         if px is None or px <= 0:
             log(f"cannot price close of {key[1]}; holding (never guess)")
             return
-        close_sz = abs(pos["size"]) * min(max(pct, 0.0), 1.0)
+        held = abs(pos["size"])
+        base = fresh_size if fresh_size is not None else held
+        close_sz = min(base, held) * min(max(pct, 0.0), 1.0)
         if close_sz <= EPS:
             return
         sign = 1 if pos["size"] > 0 else -1
@@ -267,10 +356,14 @@ class Paper:
                "pnl_usd": round(pnl, 4), "pnl_pct": round(pnl_pct, 4)}
         self.next_id += 1
         self._append(self.csv_path, PAPER_FIELDS, row, True)
-        self.risk.record_close(pnl, ts)
-        remaining = abs(pos["size"]) - close_sz
+        self.risk.record_close(pnl, pos.get("target", ""), ts)
+        self.notifier.emit({"kind": "trade_closed", "ts": ts,
+                            "target": pos.get("label"), "coin": key[1],
+                            "exit_reason": reason, "pnl_usd": round(pnl, 4)})
+        remaining = held - close_sz
         if remaining <= EPS:
             del self.positions[key]
+            self.exits.forget(key)
         else:
             pos["size"] = sign * remaining
         self.decide({"ts": int(ts) or None, "decision": "close",
@@ -284,11 +377,13 @@ class Paper:
 
     def on_tick(self, ts: float) -> None:
         h = self.cfg["hyperliquid"]
+        for intent in self.intents.flush_expired(ts):
+            self.process_intent(intent)
         # Exits.
         for key, pos in list(self.positions.items()):
             mark = self.marks.get(key[1])
-            reason = self.exits.check(pos["entry_px"], pos["entry_ts"],
-                                     mark, ts)
+            reason = self.exits.check(key, pos["side"], pos["entry_px"],
+                                     pos["entry_ts"], mark, ts)
             if reason:
                 self.close_position(key, pos, mark, ts, reason)
         # Shadow exits: mirror target exits or max hold.
@@ -319,10 +414,13 @@ class Paper:
     def on_mark(self, coin: str, px: float, ts: float) -> None:
         if px > 0:
             self.marks[coin] = px
+        # Intents close at mark time (priced at the fresh mark).
+        for intent in self.intents.flush_expired(ts):
+            self.process_intent(intent)
         for key, pos in list(self.positions.items()):
             if key[1] == coin:
-                reason = self.exits.check(pos["entry_px"], pos["entry_ts"],
-                                         px, ts)
+                reason = self.exits.check(key, pos["side"], pos["entry_px"],
+                                         pos["entry_ts"], px, ts)
                 if reason:
                     self.close_position(key, pos, px, ts, reason)
 
@@ -348,9 +446,15 @@ class Paper:
                              float(ev.get("px", 0) or 0), ts)
             elif kind == "tick":
                 self.on_tick(ts)
+            elif kind == "target_positions":
+                self.startup_sync(str(ev.get("user", "")),
+                                  ev.get("positions", []), ts)
             else:
                 log(f"ignoring unknown event type: {kind!r}")
-        # End of stream: close shadows at last marks (research data).
+        # End of stream: flush open intents, then close shadows at last
+        # marks (research data).
+        for intent in self.intents.flush_all():
+            self.process_intent(intent)
         for sid, s in list(self.shadows.items()):
             mark = self.marks.get(s["coin"])
             if mark:
@@ -381,11 +485,6 @@ def gate_status(csv_path: str, gate_cfg: dict) -> tuple[bool, dict]:
     return ok, {"closed": closed, "total_pnl_usd": total,
                 "need_closed": gate_cfg["min_closed_trades"],
                 "need_pnl": gate_cfg["min_total_pnl_usd"]}
-
-
-def loud(msg: str) -> None:
-    bar = "!" * 72
-    print(f"\n{bar}\n{msg}\n{bar}\n", file=sys.stderr, flush=True)
 
 
 def main() -> int:

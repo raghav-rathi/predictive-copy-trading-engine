@@ -301,3 +301,52 @@ leverage sync is capped and stubbed until verified. The no-code
 alternative is a Hyperliquid user vault (deposit and inherit the
 leader's entries/exits); this module exists for traders who want their
 own scoring, exits and risk rules instead.
+
+### Twitter/X builder track (2026-10-02) — ideas stolen and encoded
+
+A second research pass over builders posting publicly (full notes in
+`docs/research/twitter-copy-engine-research.md`: kei_4650's Rust Solana
+bot, MaxIsOntoSomething's Hyperliquid copy trader, the RPC Fast case
+study, Dwellir's Python bot, @slash1sol's wallet-scoring thesis,
+CopyGrade's vetting methodology, a Reddit r/algotrading builder's
+lessons, Teraus's circuit-breaker design) produced eight upgrades,
+all implemented in `hyperliquid/`:
+
+1. **Intent aggregation** (`mirror.py`): a leader's entry arrives as
+   many small fills; copying per fill misfires (Reddit builder).
+   Fills group by (user, coin, dir) into one intent inside
+   `intent_window_s` and are copied once, with size-weighted pricing.
+2. **Fill dedup** (`mirror.py`): every fill is keyed by its fill hash /
+   trade ID; replays are dropped before the book or sizer ever sees
+   them (Dwellir).
+3. **Startup sync** (`reconcile.py`, `paper.py`): on startup, fetch each
+   COPY target's `clearinghouseState` and open matching follower
+   positions — follower state matches the leader from minute one, not
+   from the first observed fill (MaxIsOntoSomething).
+4. **Pre-close state sync** (`exits.py`): before any reduce-only close,
+   re-read our size from the authoritative source so the proportional
+   close is computed on fresh state (Dwellir's CRITICAL point).
+5. **Vault targets** (`targets.py`): vault equity addresses are valid
+   targets (`"kind": "vault"`) — subscribed and scored exactly like
+   wallets (MaxIsOntoSomething).
+6. **Predictive scoring** (`scorer.py`): leaderboards reward past luck
+   (@slash1sol). The 0–100 score now uses time-weighted win rate and
+   profit factor (recent closes count more), win-rate consistency
+   across time windows (CopyGrade), and a minimum-sample guard —
+   unscored wallets (score 0.0) can never be copied.
+7. **Trailing stop + max position age** (`exits.py`): the stop ratchets
+   with favorable moves and a tighter lifetime cap sits inside the
+   max-hold backstop (kei_4650); all stops are side-aware.
+8. **Layered circuit breakers** (`risk.py`): per-trade, per-target,
+   daily-portfolio, and global kill-switch layers, each tripping
+   independently with its reason logged and notified (Teraus's 4-layer
+   idea, made real).
+9. **Notifier** (`notify.py`): trade opened/closed, breaker tripped,
+   and error events via a logging backend or Telegram (env-configured
+   only — no credentials in the repo).
+
+The through-line of the builder research: **wallet selection and exit
+discipline beat raw speed.** On Hyperliquid the venue hands you the
+signal in milliseconds, so the engine spends its complexity on scoring
+targets, sizing once per intent, and getting out — which is where the
+money is made.
