@@ -1,0 +1,126 @@
+{
+ "generated_ts": "2026-10-02T08:19:08.795592+00:00",
+ "mode": "fade_losers",
+ "mode_label": "fade known-bad vaults scoring <=30 (opposite side)",
+ "window_days": 30,
+ "targets": [
+  "korea wins again",
+  "Vapor Vault",
+  "songer1993.hl",
+  "DailyTradeAI Low risk"
+ ],
+ "total": {
+  "trades": 0,
+  "wins": 0,
+  "losses": 0,
+  "win_rate": 0.0,
+  "total_pnl_net": 0,
+  "total_fees": 0,
+  "max_drawdown": 0.0,
+  "net_ex_top3": 0
+ },
+ "skipped_signals_total": 236,
+ "per_vault": {
+  "korea wins again": {
+   "trades": 0,
+   "wins": 0,
+   "losses": 0,
+   "win_rate": 0.0,
+   "total_pnl_net": 0,
+   "total_fees": 0,
+   "max_drawdown": 0.0,
+   "fills_scored": 81,
+   "intents": 0,
+   "paper_positions": 0,
+   "copy_days": "0/31",
+   "fade_days": "0/31",
+   "fade_positions_taken": 0,
+   "mirror_positions_taken": 0,
+   "skipped_signals": 0,
+   "skip_reasons": {},
+   "net_ex_top3": 0
+  },
+  "Vapor Vault": {
+   "trades": 0,
+   "wins": 0,
+   "losses": 0,
+   "win_rate": 0.0,
+   "total_pnl_net": 0,
+   "total_fees": 0,
+   "max_drawdown": 0.0,
+   "fills_scored": 897,
+   "intents": 21,
+   "paper_positions": 0,
+   "copy_days": "30/31",
+   "fade_days": "0/31",
+   "fade_positions_taken": 0,
+   "mirror_positions_taken": 0,
+   "skipped_signals": 21,
+   "skip_reasons": {
+    "gate:copy": 21
+   },
+   "net_ex_top3": 0
+  },
+  "songer1993.hl": {
+   "trades": 0,
+   "wins": 0,
+   "losses": 0,
+   "win_rate": 0.0,
+   "total_pnl_net": 0,
+   "total_fees": 0,
+   "max_drawdown": 0.0,
+   "fills_scored": 4638,
+   "intents": 144,
+   "paper_positions": 0,
+   "copy_days": "31/31",
+   "fade_days": "0/31",
+   "fade_positions_taken": 0,
+   "mirror_positions_taken": 0,
+   "skipped_signals": 144,
+   "skip_reasons": {
+    "gate:copy": 144
+   },
+   "net_ex_top3": 0
+  },
+  "DailyTradeAI Low risk": {
+   "trades": 0,
+   "wins": 0,
+   "losses": 0,
+   "win_rate": 0.0,
+   "total_pnl_net": 0,
+   "total_fees": 0,
+   "max_drawdown": 0.0,
+   "fills_scored": 651,
+   "intents": 71,
+   "paper_positions": 0,
+   "copy_days": "31/31",
+   "fade_days": "0/31",
+   "fade_positions_taken": 0,
+   "mirror_positions_taken": 0,
+   "skipped_signals": 71,
+   "skip_reasons": {
+    "gate:copy": 71
+   },
+   "net_ex_top3": 0
+  }
+ },
+ "assumptions": {
+  "fee_per_side_pct": 0.055,
+  "paper_equity_usd": 10000.0,
+  "base_size_usd": 200.0,
+  "kelly_fraction": 0.5,
+  "kelly_edge_basis": "inverted closes for fade (their losses = our wins)",
+  "mirror_score_threshold": 65.0,
+  "fade_score_threshold": 30.0,
+  "min_closed_trades": 10,
+  "stops_pct": {
+   "stop_loss": 8.0,
+   "take_profit": 20.0,
+   "trailing": 2.0,
+   "trailing_enabled": true
+  },
+  "max_hold_hours": 24.0,
+  "intent_window_s": 60.0,
+  "candle_interval": "15m"
+ }
+}
