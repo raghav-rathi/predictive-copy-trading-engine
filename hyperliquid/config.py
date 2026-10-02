@@ -49,10 +49,15 @@ def load_config(path: str) -> dict:
 
     m = _need(h, "mirror", dict, "hyperliquid")
     for k in ("multiplier", "max_position_usd", "max_notional_per_trade_usd",
-              "slippage_buffer_pct", "max_leverage", "reconcile_interval_s"):
+              "slippage_buffer_pct", "max_leverage", "reconcile_interval_s",
+              "intent_window_s"):
         v = _need(m, k, (int, float), "hyperliquid.mirror")
         if v < 0:
             _fail(f"hyperliquid.mirror.{k} must be >= 0")
+    if m["multiplier"] <= 0:
+        _fail("hyperliquid.mirror.multiplier must be > 0")
+    if m["intent_window_s"] <= 0:
+        _fail("hyperliquid.mirror.intent_window_s must be > 0")
     if m["multiplier"] <= 0:
         _fail("hyperliquid.mirror.multiplier must be > 0")
     wl = _need(m, "coin_whitelist", list, "hyperliquid.mirror")
@@ -78,14 +83,22 @@ def load_config(path: str) -> dict:
         _fail("hyperliquid.scorer.weights must sum to 100")
 
     e = _need(h, "exits", dict, "hyperliquid")
-    for key in ("stop_loss_pct", "take_profit_pct", "max_hold_seconds"):
+    for key in ("stop_loss_pct", "take_profit_pct", "max_hold_seconds",
+                "trailing_stop_pct", "max_position_age_seconds"):
         v = _need(e, key, (int, float), "hyperliquid.exits")
-        if v <= 0:
+        if v <= 0 and key != "trailing_stop_pct":
             _fail(f"hyperliquid.exits.{key} must be > 0")
+    if e["trailing_stop_pct"] < 0:
+        _fail("hyperliquid.exits.trailing_stop_pct must be >= 0")
 
     r = _need(h, "risk", dict, "hyperliquid")
     _need(r, "daily_max_loss_usd", (int, float), "hyperliquid.risk")
     _need(r, "kill_switch_file", str, "hyperliquid.risk")
+    for key in ("max_loss_per_trade_usd", "max_loss_per_target_usd",
+                "breaker_cooldown_s"):
+        v = _need(r, key, (int, float), "hyperliquid.risk")
+        if v <= 0:
+            _fail(f"hyperliquid.risk.{key} must be > 0")
     if r["daily_max_loss_usd"] <= 0:
         _fail("hyperliquid.risk.daily_max_loss_usd must be > 0")
 
@@ -93,6 +106,11 @@ def load_config(path: str) -> dict:
     for key in ("paper_trades_csv", "decision_log", "shadow_csv",
                 "state_file"):
         _need(p, key, str, "hyperliquid.paper")
+    n = _need(p, "notifier", dict, "hyperliquid.paper")
+    backend = _need(n, "backend", str, "hyperliquid.paper.notifier")
+    if backend not in ("log", "telegram"):
+        _fail('hyperliquid.paper.notifier.backend must be "log" or '
+              '"telegram"')
     g = _need(p, "gate", dict, "hyperliquid.paper")
     _need(g, "min_closed_trades", int, "hyperliquid.paper.gate")
     _need(g, "min_total_pnl_usd", (int, float), "hyperliquid.paper.gate")

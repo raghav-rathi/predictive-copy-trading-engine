@@ -18,6 +18,11 @@ Canonical mirror rules (from the research, encoded here):
   * leverage: synced to the target's, capped at config max
   * orders: IOC limit with slippage buffer (behaves like a market order)
   * per-coin serial queues: fills for one coin never race each other
+  * intent aggregation: a leader's single entry arrives as many small
+           fills; they are grouped by (user, coin, dir) within
+           intent_window_s into one intent and copied once
+           (Reddit builder, Dwellir). Every fill is deduped by its
+           fill hash / trade ID so replays never double-copy.
 
 Live execution is NOT wired: `LiveExecutor.send()` raises
 NotImplementedError until the EIP-712 action construction is verified
@@ -72,6 +77,109 @@ class TargetBook:
 
     def position(self, user: str, coin: str) -> float:
         return float(self.books.get(user, {}).get(coin, {}).get("size", 0.0))
+
+    def set_position(self, user: str, coin: str, size: float) -> None:
+        """Seed/overwrite a target's position (startup sync)."""
+        book = self.books.setdefault(str(user).lower(), {})
+        book[str(coin)] = {"size": float(size)}
+
+
+# --------------------------------------------------------------------------
+# Intent aggregation (fill fragmentation)
+# --------------------------------------------------------------------------
+
+class IntentAggregator:
+    """Group a leader's fragmented fills into one copyable intent.
+
+    A single leader entry routinely arrives as many small fills
+    (Reddit builder, Dwellir). Copying per fill misfires — the sizer
+    sees each fragment in isolation and the engine spams opens. This
+    groups fills by (user, coin, dir) inside a fixed window
+    (intent_window_s from the first fill) and emits ONE aggregated
+    fill: sz = total, px = size-weighted average, startPosition = the
+    last member's (so proportional closes stay correct).
+
+    Dedup: every fill is keyed by its fill hash / trade ID
+    (`hash`/`tid`/`trade_id`), falling back to a composite of
+    (user, coin, dir, sz, px, ts). Replays and redeliveries are
+    dropped before they can touch the book or the sizer.
+    """
+
+    def __init__(self, window_s: float):
+        self.window_s = float(window_s)
+        self.seen: dict[str, float] = {}          # fill id -> ts (pruned)
+        self.pending: dict[tuple, dict] = {}      # key -> open intent
+
+    @staticmethod
+    def fill_id(fill: dict) -> str:
+        h = fill.get("hash") or fill.get("tid") or fill.get("trade_id")
+        if h:
+            return f"hash:{h}"
+        return "cmp:" + "|".join(
+            str(fill.get(k, "")) for k in
+            ("user", "coin", "dir", "sz", "px", "time", "ts"))
+
+    @staticmethod
+    def _key(fill: dict) -> tuple:
+        return (str(fill.get("user", "")).lower(),
+                str(fill.get("coin", "")),
+                str(fill.get("dir", "")))
+
+    @staticmethod
+    def _ts(fill: dict) -> float:
+        return float(fill.get("time", fill.get("ts", 0)) or 0)
+
+    def _close(self, intent: dict) -> dict:
+        fills = sorted(intent["fills"], key=self._ts)
+        total = sum(abs(float(f.get("sz", 0) or 0)) for f in fills)
+        wpx = (sum(abs(float(f.get("sz", 0) or 0)) * float(f.get("px", 0) or 0)
+                   for f in fills) / total) if total > 0 else 0.0
+        last = fills[-1]
+        user, coin, direction = self._key(last)
+        return {
+            "user": user, "coin": coin, "dir": direction,
+            "sz": total, "px": wpx,
+            "startPosition": last.get("startPosition", 0),
+            "ts": self._ts(last), "time": self._ts(last),
+            "intent": True, "fragment_count": len(fills),
+            "fill_ids": [self.fill_id(f) for f in fills],
+        }
+
+    def add(self, fill: dict) -> tuple[bool, list[dict]]:
+        """Add a fill. -> (is_duplicate, intents closed by rollover)."""
+        fid = self.fill_id(fill)
+        if fid in self.seen:
+            return True, []
+        ts = self._ts(fill)
+        self.seen[fid] = ts
+        key = self._key(fill)
+        rolled: list[dict] = []
+        it = self.pending.get(key)
+        if it is not None and ts - it["first_ts"] > self.window_s:
+            rolled.append(self._close(it))
+            it = None
+        if it is None:
+            self.pending[key] = {"fills": [fill], "first_ts": ts}
+        else:
+            it["fills"].append(fill)
+        return False, rolled
+
+    def flush_expired(self, now_ts: float) -> list[dict]:
+        """Close intents whose window has elapsed as of now_ts."""
+        out: list[dict] = []
+        for key in list(self.pending):
+            it = self.pending[key]
+            if now_ts - it["first_ts"] >= self.window_s:
+                out.append(self._close(self.pending.pop(key)))
+        # Prune the dedup set: ids older than 10 windows are forgotten.
+        cutoff = now_ts - 10 * self.window_s
+        for fid in [f for f, t in self.seen.items() if t < cutoff]:
+            del self.seen[fid]
+        return out
+
+    def flush_all(self) -> list[dict]:
+        out = [self._close(self.pending.pop(k)) for k in list(self.pending)]
+        return out
 
 
 # --------------------------------------------------------------------------
@@ -182,8 +290,10 @@ def run_ws(cfg: dict, targets: dict, on_fill, on_tick=None) -> None:
     """Subscribe userFills per target; dispatch fills to on_fill.
 
     Per-coin serial queues: each coin gets one worker thread so fills
-    for the same coin can never race each other. Reconnects with
-    backoff. Requires `websocket-client`.
+    for the same coin can never race each other. Each worker owns an
+    IntentAggregator: fragmented fills for the coin are grouped into
+    intents and deduped by fill hash before reaching on_fill.
+    Reconnects with backoff. Requires `websocket-client`.
     """
     try:
         import websocket
@@ -193,6 +303,7 @@ def run_ws(cfg: dict, targets: dict, on_fill, on_tick=None) -> None:
         sys.exit(3)
 
     h = cfg["hyperliquid"]
+    window_s = float(h["mirror"].get("intent_window_s", 5.0))
     users = [u for u, t in targets.items()
              if t.get("classification") == "copy" and not t.get("example")]
     if not users:
@@ -200,16 +311,35 @@ def run_ws(cfg: dict, targets: dict, on_fill, on_tick=None) -> None:
         sys.exit(2)
 
     work: dict[str, "queue.Queue[dict]"] = {}
+    aggs: dict[str, IntentAggregator] = {}
     stop = threading.Event()
 
+    def handle_intent(intent: dict) -> None:
+        try:
+            on_fill(intent)
+        except Exception as e:  # never let one intent kill the loop
+            log(f"fill handler error on {intent.get('coin')}: {e}")
+
+    def flush_all_aggs() -> None:
+        now = time.time()
+        for coin, agg in list(aggs.items()):
+            for intent in agg.flush_expired(now):
+                handle_intent(intent)
+
     def worker(coin: str, q: "queue.Queue[dict]") -> None:
+        agg = aggs.setdefault(coin, IntentAggregator(window_s))
         while not stop.is_set():
             try:
                 fill = q.get(timeout=1.0)
             except queue.Empty:
                 continue
             try:
-                on_fill(fill)
+                dup, rolled = agg.add(fill)
+                if dup:
+                    log(f"duplicate fill dropped for {coin}")
+                    continue
+                for intent in rolled + agg.flush_expired(time.time()):
+                    handle_intent(intent)
             except Exception as e:  # never let one fill kill the loop
                 log(f"fill handler error on {coin}: {e}")
             finally:
@@ -239,6 +369,7 @@ def run_ws(cfg: dict, targets: dict, on_fill, on_tick=None) -> None:
                 raw = ws.recv()
                 if on_tick:
                     on_tick(time.time())
+                flush_all_aggs()  # close intents whose window elapsed
                 try:
                     msg = json.loads(raw)
                 except (json.JSONDecodeError, TypeError):
