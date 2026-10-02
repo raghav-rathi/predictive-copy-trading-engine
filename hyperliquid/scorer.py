@@ -154,8 +154,22 @@ def _fill_ts_s(f: dict) -> float:
 
 
 def _fill_pnl(f: dict):
-    """Realized PnL field: live fills use `closedPnl`, fixtures use `pnl`."""
-    return f.get("pnl", f.get("closedPnl"))
+    """Realized PnL field: live fills use `closedPnl`, fixtures use `pnl`.
+
+    Hyperliquid returns closedPnl as a NUMERIC STRING (e.g. '-0.552326'),
+    so coerce to float here — a strict isinstance check silently drops
+    every live fill to the FIFO fallback (this bug understated one
+    vault's 30d realized PnL by 45%).
+    """
+    raw = f.get("pnl", f.get("closedPnl"))
+    if isinstance(raw, (int, float)):
+        return float(raw)
+    if isinstance(raw, str):
+        try:
+            return float(raw)
+        except ValueError:
+            return None
+    return None
 
 
 def realized_closes(fills: list[dict], fee_rate: float = 0.0) -> list[dict]:
