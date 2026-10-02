@@ -13,6 +13,13 @@ increases one. It exists because websockets drop, fills get missed, and
 the paper engine's target books are derived from the same event stream
 it protects.
 
+Startup sync (MaxIsOntoSomething) goes the other way: on startup, fetch
+each COPY target's clearinghouseState and open matching follower
+positions for anything the target holds that we don't, so follower
+state matches the leader from the first minute instead of only from
+the first observed fill. In paper mode the same behavior is driven by
+`target_positions` events (see paper.py).
+
 Fetch is implemented against the public POST /info endpoint (no auth).
 TODO-verify: the exact clearinghouseState response shape against a live
 call; parsing here is defensive and treats an unparseable response as
@@ -53,6 +60,21 @@ def fetch_positions(info_url: str, user: str) -> dict[str, float]:
                 out[coin] = size
     except (TypeError, ValueError, AttributeError):
         return {}
+    return out
+
+
+def fetch_all_target_positions(info_url: str,
+                               users: list[str]) -> dict[str, dict[str, float]]:
+    """Startup sync source: {user: {coin: signed_size}} for each target.
+
+    One clearinghouseState fetch per target. Users that fail to parse
+    are simply absent from the result (skip, do not guess).
+    """
+    out: dict[str, dict[str, float]] = {}
+    for u in users:
+        pos = fetch_positions(info_url, u)
+        if pos:
+            out[str(u).lower()] = pos
     return out
 
 
