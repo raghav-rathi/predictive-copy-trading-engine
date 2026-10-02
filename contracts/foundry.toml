@@ -1,0 +1,13 @@
+[profile.default]
+src = "src"
+test = "test"
+out = "out"
+libs = ["lib"]
+# Robinhood Chain: chain ID 4663, Arbitrum Orbit. Fork tests should pin a
+# recent block once the router wiring is verified on-chain.
+solc_version = "0.8.24"
+optimizer = true
+optimizer_runs = 200
+
+[profile.default.fuzz]
+runs = 128
