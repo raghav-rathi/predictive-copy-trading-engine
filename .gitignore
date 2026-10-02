@@ -4,6 +4,7 @@ __pycache__/
 *.key
 *.pem
 data/*.csv
+data/*.ndjson
 data/targets.json
 data/engine_state.json
 raw/

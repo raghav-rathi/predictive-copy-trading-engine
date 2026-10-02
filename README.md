@@ -53,6 +53,7 @@ track record**. The full reasoning lives in
 | 3. Execution | `contracts/src/CopyDetector.sol` | Balance-diff detector: snapshot candidates, buy whichever grew, cheap revert on a miss; per-call spend cap + slippage guard |
 | 4. Exits | `engine/engine.py` | Mirror-sell, stop-loss, take-profit, max-hold; first trigger wins |
 | 5. Gate | `engine/engine.py` | Paper by default; live requires an explicit flag **and** a positive paper record (default: ≥30 closed trades, PnL ≥ 0) |
+| 6. Venue 2 | `hyperliquid/` | The same strategy on Hyperliquid perps: WS `userFills` signal (ms), realized-PnL scoring, proportional mirror + Kelly cap, paper-first — see `hyperliquid/README.md` |
 
 ## Repo layout
 
@@ -65,6 +66,12 @@ scorer/               Wallet profitability scorer (Blockscout API v2)
 engine/               Paper-first copy/fade engine (+ examples/)
 data/whales_seed.json The operator's 25 targets with our research verdicts
 config.example.json   All thresholds, caps, exit params; live_trading: false
+hyperliquid/          Hyperliquid perps copy engine: WS signal, scoring,
+                      proportional mirror + Kelly cap, exits, reconcile,
+                      paper-first runner (see hyperliquid/README.md)
+docs/research/copy-engine-research.md  Open-source copy-bot research +
+                      Hyperliquid mechanics that the hyperliquid/ module
+                      is built on
 ```
 
 ## Quickstart (offline, paper only)

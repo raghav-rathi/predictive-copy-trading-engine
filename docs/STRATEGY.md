@@ -234,3 +234,70 @@ this mechanism before it has proven itself on paper, in public commits.
 *Research code. Not financial advice. Memecoins on a young L2 can go to
 zero between two 100 ms blocks; size accordingly, or better, stay on
 paper until the data says otherwise.*
+
+## 7. Hyperliquid engine
+
+The second venue module (`hyperliquid/`) exists because the hardest
+part of this strategy turned out not to be execution latency — it was
+target selection. On Robinhood Chain, landing in the same block as a
+fill takes MEV-grade plumbing (Solana pre-signal, detector contract,
+burst streaming). On Hyperliquid, the venue hands you the signal for
+free: the public websocket fires `userFills` within milliseconds of a
+target's fill, carrying coin, direction, size, price and starting
+position — no auth, no sequencer race. When observation is nearly free,
+the entire game is **who you copy**, which is exactly what this repo's
+scorer already does. The Hyperliquid module is the same strategy with
+the latency problem deleted and the scoring problem kept.
+
+Design rationale, point by point:
+
+- **Signal.** `wss://api.hyperliquid.xyz/ws`, `userFills` per target
+  address. `mirror.py` subscribes, dispatches per-coin through serial
+  queues (fills for one coin never race), and degrades to a file
+  replay in paper mode.
+- **Targets.** `targets.py` + `hyperliquid/targets.json`. The
+  single-operator clustering lesson from our fleet research is encoded
+  here as a first-class step: wallets that repeatedly co-enter the
+  same coin within a short window are unioned into one operator
+  cluster, and the cluster casts a single vote (best-scored member
+  decides; sizing happens once, not once per member).
+- **Scoring.** `scorer.py` pulls fills from the public `POST /info`
+  API (`userFillsByTime`), pairs closes to opens FIFO per coin
+  (preferring Hyperliquid's own realized `pnl` on close fills),
+  and emits win rate, profit factor, max drawdown, sample size and
+  recency as a 0–100 score: copy ≥ 65, fade ≤ 30, everything else pass.
+- **Sizing.** `sizing.py`: `copySize = fill.sz × multiplier`, capped by
+  `max_position_usd` and per-trade notional; a fractional-Kelly stake
+  from the target's rolling realized closes can only shrink the copy,
+  and edge ≤ 0 skips the open entirely.
+- **Exits.** `exits.py`: stop-loss / take-profit / max-hold fire
+  regardless of the target; target exits are mirrored proportionally
+  (`closePercent = fill.sz / |startPosition|`), keeping us in sync
+  through partial exits.
+- **Reconciliation.** `reconcile.py`: every N seconds, diff our
+  positions against each target's `clearinghouseState`; auto-close
+  anything the target flattened or flipped. Only ever reduces risk.
+- **Paper-first.** `paper.py`: same decision path as live, paper
+  ledger + priced shadow positions for skipped signals + a decision
+  log for every action. The live gate mirrors the main engine's
+  (explicit flag AND a positive paper record), and live order
+  placement raises `NotImplementedError` by design until the EIP-712
+  exchange wiring is verified.
+- **Risk.** `risk.py`: daily-loss circuit breaker, kill-switch file,
+  coin whitelist, max notional per trade — enforced in paper mode too.
+
+How the 7 stolen ideas map to modules (full credit in
+`docs/research/copy-engine-research.md`): continuous scoring with a
+mirror threshold → `scorer.py` + `targets.py`; proportional close
+logic → `mirror.py`; reconcile loop → `reconcile.py`; Kelly-as-cap →
+`sizing.py`; single-operator clustering → `targets.py`; paper-first +
+shadow positions + decision logs → `paper.py`; MEV-aware submission
+thinking → WS `userFills` + IOC-with-slippage-buffer in `mirror.py`.
+
+Venue differences worth stating: Hyperliquid is perps, so exits are
+mirrorable through close fills (no guessing), but funding payments and
+leverage introduce costs the Robinhood spot engine doesn't have;
+leverage sync is capped and stubbed until verified. The no-code
+alternative is a Hyperliquid user vault (deposit and inherit the
+leader's entries/exits); this module exists for traders who want their
+own scoring, exits and risk rules instead.
