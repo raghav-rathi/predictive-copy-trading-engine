@@ -1,1 +1,79 @@
-{"wallets":[{"address":"0x00ae7dc3e9796260506afe8fdb0598c281f10776","kind":"vault","label":"winning-fortunes"},{"address":"0xa1222c3590709cd9bce80ae04c2fd07e89e8ab2a","kind":"vault","label":"GeorgV Copytrading"},{"address":"0xa2ec76b6464bcbd771f11b769d40055176a6e4a3","kind":"vault","label":"Kairos Fi"},{"address":"0x50e2fe552727a4b8692c192b4f96d1a6b0d44394","kind":"vault","label":"Aquila Chrysaetos"}]}
+{
+ "wallets": [
+  {
+   "address": "0x094833499583333b4294e61eb8efc20fcda97eb9",
+   "kind": "vault",
+   "label": "Aaroh"
+  },
+  {
+   "address": "0xa1222c3590709cd9bce80ae04c2fd07e89e8ab2a",
+   "kind": "vault",
+   "label": "GeorgV Copytrading"
+  },
+  {
+   "address": "0x84054445bbc09d8cffc6e9c756b1c7d308e5039d",
+   "kind": "vault",
+   "label": "Queen [Bee]"
+  },
+  {
+   "address": "0xa2ec76b6464bcbd771f11b769d40055176a6e4a3",
+   "kind": "vault",
+   "label": "Kairos Fi"
+  },
+  {
+   "address": "0x8231fdf9997c003a267374b45fb25c0455aa1dcb",
+   "kind": "vault",
+   "label": "AIQuantPulse"
+  },
+  {
+   "address": "0xd21fdb5f5e167c5a05aa6a544fa9afc313bb2454",
+   "kind": "vault",
+   "label": "V3 momentum"
+  },
+  {
+   "address": "0x3aa21f7f7d541454624bcea605ff5e704551cd00",
+   "kind": "vault",
+   "label": "songer1993.hl"
+  },
+  {
+   "address": "0x00ae7dc3e9796260506afe8fdb0598c281f10776",
+   "kind": "vault",
+   "label": "winning-fortunes"
+  },
+  {
+   "address": "0x817db4e64c444520c87e82484469a42cd47be38a",
+   "kind": "vault",
+   "label": "Apex Strategy"
+  },
+  {
+   "address": "0x2837c128734ade71c55085cbe556699f064ea4a4",
+   "kind": "vault",
+   "label": "pakhom"
+  },
+  {
+   "address": "0x50e2fe552727a4b8692c192b4f96d1a6b0d44394",
+   "kind": "vault",
+   "label": "Aquila Chrysaetos"
+  },
+  {
+   "address": "0xa8a05f0c347eeece9b2581f33aa849ec8569a0ac",
+   "kind": "vault",
+   "label": "Vapor Vault"
+  },
+  {
+   "address": "0x49a648936441b22f28f069d3c088928682b277ae",
+   "kind": "vault",
+   "label": "Black Ops"
+  },
+  {
+   "address": "0x45e7014f092c5f9c39482caec131346f13ac5e73",
+   "kind": "vault",
+   "label": "Ultron"
+  },
+  {
+   "address": "0xa844d7ac9fa3424c4fd38a25baa23e460ec3e802",
+   "kind": "vault",
+   "label": "69 Jump Street"
+  }
+ ]
+}

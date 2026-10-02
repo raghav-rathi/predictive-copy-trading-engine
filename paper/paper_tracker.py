@@ -98,9 +98,16 @@ INTENT_WINDOW_S = 120.0     # fragment clustering window
 MAX_LOOKBACK_S = 7 * 86400  # never fetch more than 7d incrementally
 
 STOP_LOSS_PCT = 8.0
-TAKE_PROFIT_PCT = 20.0
-TRAILING_PCT = 2.0
+TAKE_PROFIT_PCT = 6.0    # was 20.0 (never fired in 3,716 backtest legs); 6% banks
+                         # runners before the tight trail gets wicked out
+TRAILING_PCT = 1.0         # was 2.0; 1% is the robust grid-search winner
 MAX_HOLD_S = 24 * 3600
+# Coins proven dead weight in the 30d backtest (flat-to-negative copy edge).
+# Everything else (including new coins from new vaults) is allowed.
+COIN_BLOCKLIST = {"BTC", "ETH", "BNB", "LINK", "DOGE"}
+# Walk-forward guard: pause a target whose own paper book decays.
+WF_PAUSE_MIN_TRADES = 10   # need at least this many closed paper trades
+WF_PAUSE_WINDOW = 20       # trailing window evaluated
 
 MAX_FILLS_PER_CHUNK = 1990  # userFillsByTime cap is ~2000
 MAX_CHUNKS = 64
@@ -301,6 +308,12 @@ def decide_copy(tstate: dict, coin: str, intent_px: float):
     if tstate.get("classification") != "copy":
         return None, (f"skip: target {tstate.get('classification')} "
                       f"(score {tstate.get('score', 0):.1f})")
+    if coin in COIN_BLOCKLIST:
+        return None, f"skip: {coin} blocklisted (no copy edge in backtest)"
+    wf = tstate.get("paper_pnl_window", [])
+    if len(wf) >= WF_PAUSE_MIN_TRADES and sum(wf) < 0:
+        return None, (f"skip: walk-forward paused "
+                      f"(trailing {len(wf)} paper trades {sum(wf):+.2f} USD)")
     if intent_px <= 0:
         return None, "skip: no price"
     f = kelly_fstar(tstate.get("recent_closes_usd", []), KELLY_MIN_CLOSES)
@@ -418,6 +431,13 @@ def close_position(state: dict, pos: dict, exit_px: float, exit_ts_ms: float,
     realized = gross - fee_open_attr - fee_close
     state["realized_pnl_usd"] = state.get("realized_pnl_usd", 0.0) + realized
     state["fees_paid_usd"] = state.get("fees_paid_usd", 0.0) + fee_close
+    # walk-forward: per-target trailing paper-PnL window
+    tgt = state["targets"].get(pos.get("target", ""), None)
+    if tgt is not None:
+        w = tgt.setdefault("paper_pnl_window", [])
+        w.append(round(realized, 4))
+        del w[:-WF_PAUSE_WINDOW]
+        tgt["paper_pnl_usd"] = round(tgt.get("paper_pnl_usd", 0.0) + realized, 4)
     pos["fee_open_usd"] = pos.get("fee_open_usd", 0.0) - fee_open_attr
     pos["size"] = sign * (held - close_coin)
     rows.append({"ts": int(exit_ts_ms), "target": pos["label"],
