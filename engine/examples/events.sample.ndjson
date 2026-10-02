@@ -1,0 +1,11 @@
+{"type":"fomo_deposit","whale":"0x23ad4067aF541ee28c7f5c69Eff348139Beb7BD8","token":"0x1111111111111111111111111111111111111111","price_usdg":1.00,"ts":1759300000,"deposit_tx":"sample-deposit-1"}
+{"type":"mark","token":"0x1111111111111111111111111111111111111111","price_usdg":1.12,"ts":1759300600}
+{"type":"fomo_deposit","whale":"0x8A71697cc8a6E820C0bc12B29C1b329C3ab6599b","token":"0x2222222222222222222222222222222222222222","price_usdg":0.50,"ts":1759300900,"deposit_tx":"sample-deposit-2"}
+{"type":"mark","token":"0x1111111111111111111111111111111111111111","price_usdg":1.35,"ts":1759301200}
+{"type":"fomo_deposit","whale":"0x23ad4067aF541ee28c7f5c69Eff348139Beb7BD8","token":"0x2222222222222222222222222222222222222222","price_usdg":0.50,"ts":1759301300,"deposit_tx":"sample-deposit-3"}
+{"type":"mark","token":"0x2222222222222222222222222222222222222222","price_usdg":0.55,"ts":1759302000}
+{"type":"whale_sell","whale":"0x23ad4067aF541ee28c7f5c69Eff348139Beb7BD8","token":"0x2222222222222222222222222222222222222222","ts":1759302600}
+{"type":"fomo_deposit","whale":"0x23ad4067aF541ee28c7f5c69Eff348139Beb7BD8","token":"0x3333333333333333333333333333333333333333","price_usdg":2.00,"ts":1759302700,"deposit_tx":"sample-deposit-4"}
+{"type":"mark","token":"0x3333333333333333333333333333333333333333","price_usdg":1.94,"ts":1759303000}
+{"type":"tick","ts":1759310500}
+{"type":"fomo_deposit","whale":null,"token":null,"price_usdg":null,"ts":1759310600,"deposit_tx":"sample-deposit-unattributed"}

@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.env
+*.key
+*.pem
+data/*.csv
+data/targets.json
+data/engine_state.json
+raw/
+out/
+cache/
+broadcast/
