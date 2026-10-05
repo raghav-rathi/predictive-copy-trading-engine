@@ -1,0 +1,32 @@
+{
+  "trades": 46,
+  "wins": 1,
+  "win_rate": 0.021739130434782608,
+  "expectancy_r": -0.9620221894218506,
+  "max_drawdown": 0.37941803792796724,
+  "total_net_pnl": -3794.1803792796745,
+  "total_r": -44.25302071340513,
+  "checks": [
+    {
+      "rule": "trades >= 40",
+      "pass": true,
+      "value": 46
+    },
+    {
+      "rule": "win rate >= 33%",
+      "pass": false,
+      "value": 0.0217
+    },
+    {
+      "rule": "expectancy >= +0.40R",
+      "pass": false,
+      "value": -0.962
+    },
+    {
+      "rule": "max drawdown <= 20%",
+      "pass": false,
+      "value": 0.3794
+    }
+  ],
+  "verdict": "NO-GO"
+}
