@@ -1,0 +1,6 @@
+
+[GATE] PRIME SHORT HYPE | 2026-10-05 21:09 UTC
+Zone: 30.85 - 31.42 (4H FVG)
+Entry: 30.97 | Stop: 31.42 (zone top)
+Size: 3.19 (98.80 USD notional)
+Risk: 1.0% (100.00 USD) | Anchor high: 34.1
