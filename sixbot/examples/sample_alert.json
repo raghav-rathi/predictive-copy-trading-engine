@@ -1,0 +1,28 @@
+{
+  "alert_id": "HYPE-1791234567890",
+  "coin": "HYPE",
+  "asof_ms": 1791234567890,
+  "zone_top": 31.42,
+  "zone_bottom": 30.85,
+  "stop": 31.42,
+  "prime": true,
+  "anchor_high": 34.1,
+  "ladder_snapshot": [
+    [
+      31.42,
+      30.85,
+      "FRESH"
+    ],
+    [
+      29.9,
+      29.55,
+      "TESTED"
+    ]
+  ],
+  "entry": 30.97,
+  "qty": 3.19,
+  "notional": 98.8,
+  "risk_pct": 1.0,
+  "risk_amount": 100.0,
+  "skip_reason": ""
+}

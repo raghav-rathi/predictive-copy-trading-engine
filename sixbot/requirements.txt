@@ -1,0 +1,1 @@
+# sixbot has no third-party dependencies (Python standard library only).
