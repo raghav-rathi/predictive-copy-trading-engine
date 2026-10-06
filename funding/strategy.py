@@ -73,7 +73,7 @@ def decide(
 
     # 2. Switches: only when carry gain beats 4-leg costs over the horizon.
     cost = four_leg_cost_hr(cfg)
-    for coin, pos in live.items():
+    for coin, pos in list(live.items()):
         held_avg = avg_by_coin.get(coin, pos.entry_avg_funding_hr)
         for cand in ranked:
             if cand.coin == coin or cand.coin in live:
