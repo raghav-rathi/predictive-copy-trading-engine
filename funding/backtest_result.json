@@ -1,0 +1,53 @@
+{
+  "config": {
+    "ranking_window_hours": 168,
+    "min_history_hours": 72,
+    "entry_threshold_hr": 8e-06,
+    "exit_threshold_hr": 0.0,
+    "max_positions": 2,
+    "farm_capital": 10000.0,
+    "max_weight_per_coin": 0.25,
+    "switch_horizon_hours": 168,
+    "switch_gap_apr_points": 12.0,
+    "max_hold_days": 30,
+    "perp_taker_fee": 0.00035,
+    "spot_fee": 0.0002,
+    "slippage_buffer": 0.0002,
+    "pause_if_7d_carry_negative": true,
+    "api_url": "https://api.hyperliquid.xyz",
+    "request_timeout_s": 20
+  },
+  "summary": {
+    "equity": 10016.5,
+    "open_positions": 2,
+    "open_carry": 172.42,
+    "closed_carry": 24.75,
+    "closed_fees": 8.25,
+    "events": 8
+  },
+  "net": 16.5,
+  "apr": 0.020075,
+  "days": 30,
+  "universe": [
+    "BTC",
+    "ETH",
+    "HYPE",
+    "ZEC",
+    "NEAR",
+    "SOL",
+    "XRP",
+    "PUMP",
+    "ENA",
+    "ZRO",
+    "LIT",
+    "UNI",
+    "SUI",
+    "VVV",
+    "kPEPE",
+    "FARTCOIN",
+    "AVAX",
+    "WLD",
+    "PONS",
+    "MON"
+  ]
+}
