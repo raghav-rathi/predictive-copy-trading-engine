@@ -294,7 +294,8 @@ def score_target_fills(fills: list[dict]):
     norm = normalize_for_scorer(fills)
     stats = score_wallet(norm, SCORER_WEIGHTS, min_closed=MIN_CLOSED)
     cls, _watch = classify(stats["score"], stats["closed"], MIN_CLOSED,
-                           MIRROR_SCORE, FADE_SCORE)
+                           MIRROR_SCORE, FADE_SCORE,
+                           flow_flags=stats.get("flow_flags"))
     closes = realized_closes(norm)
     recent = [c["pnl_usd"] for c in closes[-50:]]
     return stats["score"], cls, stats["closed"], recent
