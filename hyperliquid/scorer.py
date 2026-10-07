@@ -40,6 +40,8 @@ Scoring (weights from config, default sum 100):
 
 Classification:
   closed < min_closed_trades        -> "pass" (unscored: never copy)
+  uncopyable flow (HFT/scalper/market-maker/flipper) -> "pass" (never
+    copy AND never fade: fading has the same latency problem in reverse)
   score >= mirror_score_threshold   -> "copy"
   score <= fade_score_threshold     -> "fade"
   else                              -> "pass" (watch=True when score >= 50)
@@ -91,7 +93,7 @@ class HyperliquidInfo:
             try:
                 self._last_call = time.time()
                 with urllib.request.urlopen(req, timeout=30) as r:
-                    return json.load(r.read().decode())
+                    return json.loads(r.read().decode())
             except urllib.error.HTTPError as e:
                 last_err = e
                 if e.code == 429:
@@ -140,18 +142,51 @@ def _fill_side_sign(fill: dict) -> int:
     return 1 if "Long" in d else -1
 
 
+def _fill_ts_s(f: dict) -> float:
+    """Return the fill's timestamp in seconds.
+
+    Live Hyperliquid fills carry millisecond-epoch timestamps while some
+    test fixtures use seconds; normalize here so every downstream
+    consumer (decay weights, hold times, recency) works in seconds.
+    """
+    ts = float(f.get("time", f.get("ts", 0)) or 0)
+    if ts > 1e12:  # millisecond epoch -> seconds
+        ts /= 1000.0
+    return ts
+
+
+def _fill_pnl(f: dict):
+    """Realized PnL field: live fills use `closedPnl`, fixtures use `pnl`.
+
+    Hyperliquid returns closedPnl as a NUMERIC STRING (e.g. '-0.552326'),
+    so coerce to float here — a strict isinstance check silently drops
+    every live fill to the FIFO fallback (this bug understated one
+    vault's 30d realized PnL by 45%).
+    """
+    raw = f.get("pnl", f.get("closedPnl"))
+    if isinstance(raw, (int, float)):
+        return float(raw)
+    if isinstance(raw, str):
+        try:
+            return float(raw)
+        except ValueError:
+            return None
+    return None
+
+
 def realized_closes(fills: list[dict], fee_rate: float = 0.0) -> list[dict]:
     """Pair closes to opens FIFO per coin -> realized closes.
 
-    Uses the fill's own `pnl` (Hyperliquid reports realized PnL on close
-    fills) when present and numeric; otherwise reconstructs from FIFO
-    lots. Each close dict: {coin, ts, pnl_usd, hold_s, sz}.
+    Uses the fill's own realized PnL (Hyperliquid reports it on close
+    fills as `closedPnl`) when present and numeric; otherwise
+    reconstructs from FIFO lots. Each close dict: {coin, ts, pnl_usd,
+    hold_s, sz}. Timestamps are normalized to seconds.
     """
     lots: dict[str, deque] = defaultdict(deque)
     closes: list[dict] = []
-    for f in sorted(fills, key=lambda x: float(x.get("time", x.get("ts", 0)) or 0)):
+    for f in sorted(fills, key=_fill_ts_s):
         coin = str(f.get("coin", ""))
-        ts = float(f.get("time", f.get("ts", 0)) or 0)
+        ts = _fill_ts_s(f)
         sz = abs(float(f.get("sz", 0) or 0))
         px = float(f.get("px", 0) or 0)
         if not coin or sz <= 0 or px <= 0:
@@ -164,7 +199,7 @@ def realized_closes(fills: list[dict], fee_rate: float = 0.0) -> list[dict]:
             remaining = sz
             realized = 0.0
             hold_w = 0.0
-            pnl_field = f.get("pnl")
+            pnl_field = _fill_pnl(f)
             while remaining > 1e-12 and lots[coin]:
                 lot = lots[coin][0]
                 take = min(remaining, lot["sz"])
@@ -190,19 +225,37 @@ def realized_closes(fills: list[dict], fee_rate: float = 0.0) -> list[dict]:
 
 def score_wallet(fills: list[dict], weights: dict,
                  now_s: float | None = None,
-                 min_closed: int | None = None) -> dict:
+                 min_closed: int | None = None,
+                 flow_cfg: dict | None = None) -> dict:
     """Score a wallet 0-100 from its fills (predictive metrics).
 
     If min_closed is given and the wallet has fewer closed trades, it
     is returned unscored (score 0.0, "unscored": True) — it can never
     be copied, however lucky the sample looks.
+
+    flow_cfg overrides the flow-filter thresholds (see
+    flow_filter.DEFAULT_FLOW_CONFIG); None keeps defaults.
     """
     now_s = now_s or time.time()
     closes = realized_closes(fills)
     n = len(closes)
     stats: dict = {"closed": n, "total_pnl_usd": 0.0, "win_rate": 0.0,
                    "profit_factor": 0.0, "max_drawdown": 0.0,
-                   "avg_hold_s": 0.0, "score": 0.0, "unscored": False}
+                   "avg_hold_s": 0.0, "score": 0.0, "unscored": False,
+                   "flow_flags": [], "flow_metrics": {}}
+    # Uncopyable-flow screen runs even on unscored wallets: an HFT book
+    # with 9 lucky closes must not become copyable at close #10 without
+    # the flag already attached.
+    try:
+        try:
+            from flow_filter import is_uncopyable
+        except ImportError:
+            from hyperliquid.flow_filter import is_uncopyable
+        flags, fmetrics = is_uncopyable(fills, n, flow_cfg)
+        stats["flow_flags"] = flags
+        stats["flow_metrics"] = fmetrics
+    except ImportError:
+        pass
     if n == 0:
         stats["unscored"] = True
         return stats
@@ -274,13 +327,20 @@ def score_wallet(fills: list[dict], weights: dict,
 
 
 def classify(score: float, closed: int, min_closed: int,
-             mirror_thr: float, fade_thr: float) -> tuple[str, bool]:
+             mirror_thr: float, fade_thr: float,
+             flow_flags: list | None = None) -> tuple[str, bool]:
     """-> (classification, watch). Thresholds from config.
 
     Wallets below min_closed_trades are "pass" regardless of score:
     unscored wallets can never be copied (score_wallet marks them
     "unscored" and pins the score to 0.0).
+
+    Wallets flagged by the flow filter (HFT/scalper/market-maker/
+    flipper) are "pass" regardless of score — and never "fade":
+    fading an HFT book has the same latency problem in reverse.
     """
+    if flow_flags:
+        return "pass", False
     if closed < min_closed:
         return "pass", False
     if score >= mirror_thr:
@@ -292,13 +352,15 @@ def classify(score: float, closed: int, min_closed: int,
 
 def score_address(address: str, info_url: str, weights: dict,
                   mirror_thr: float, fade_thr: float,
-                  min_closed: int) -> dict:
+                  min_closed: int, flow_cfg: dict | None = None) -> dict:
     """Fetch, profile, score and classify one wallet."""
     info = HyperliquidInfo(info_url)
     fills = info.user_fills_by_time(address)
-    stats = score_wallet(fills, weights, min_closed=min_closed)
+    stats = score_wallet(fills, weights, min_closed=min_closed,
+                         flow_cfg=flow_cfg)
     cls, watch = classify(stats["score"], stats["closed"], min_closed,
-                          mirror_thr, fade_thr)
+                          mirror_thr, fade_thr,
+                          flow_flags=stats.get("flow_flags"))
     return {"address": address.lower(), "classification": cls,
             "watch": watch, "score": stats["score"], "stats": stats}
 
