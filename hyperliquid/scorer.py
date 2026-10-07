@@ -93,7 +93,7 @@ class HyperliquidInfo:
             try:
                 self._last_call = time.time()
                 with urllib.request.urlopen(req, timeout=30) as r:
-                    return json.load(r.read().decode())
+                    return json.loads(r.read().decode())
             except urllib.error.HTTPError as e:
                 last_err = e
                 if e.code == 429:
