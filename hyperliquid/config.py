@@ -82,6 +82,20 @@ def load_config(path: str) -> dict:
     if abs(sum(w.values()) - 100) > 1e-9:
         _fail("hyperliquid.scorer.weights must sum to 100")
 
+    # Optional: flow_filter thresholds. Absent -> DEFAULT_FLOW_CONFIG.
+    ff = h.get("flow_filter")
+    if ff is not None:
+        if not isinstance(ff, dict):
+            _fail("hyperliquid.flow_filter must be a dict")
+        for key in ("hft_trades_per_hour", "hft_burst_per_hour",
+                    "hft_min_fills", "scalper_max_hold_s",
+                    "scalper_min_closes", "flipper_min_ratio",
+                    "flipper_min_closes"):
+            if key in ff and not isinstance(ff[key], (int, float)):
+                _fail(f"hyperliquid.flow_filter.{key} must be numeric")
+        if "flipper_min_ratio" in ff and not 0 < ff["flipper_min_ratio"] <= 1:
+            _fail("hyperliquid.flow_filter.flipper_min_ratio must be in (0, 1]")
+
     e = _need(h, "exits", dict, "hyperliquid")
     for key in ("stop_loss_pct", "take_profit_pct", "max_hold_seconds",
                 "trailing_stop_pct", "max_position_age_seconds"):
