@@ -53,6 +53,7 @@ from datetime import datetime, timezone
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from config import load_config
+from costs import FundingLedger, round_trip_costs, taker_fee_rate
 from targets import load_targets, cluster_wallets, cluster_vote
 from mirror import decide_fill, TargetBook, IntentAggregator, EPS
 from sizing import size_copy, kelly_fstar
@@ -63,10 +64,10 @@ from notify import build_notifier
 
 PAPER_FIELDS = ["trade_id", "mode", "target", "coin", "side", "entry_ts",
                 "entry_px", "size", "exit_ts", "exit_px", "exit_reason",
-                "pnl_usd", "pnl_pct"]
+                "pnl_usd", "pnl_pct", "fees_usd", "funding_usd"]
 SHADOW_FIELDS = ["shadow_id", "target", "coin", "side", "entry_ts",
                  "entry_px", "size", "exit_ts", "exit_px", "exit_reason",
-                 "pnl_usd", "skip_reason"]
+                 "pnl_usd", "skip_reason", "fees_usd", "funding_usd"]
 
 
 def log(msg: str) -> None:
@@ -106,6 +107,19 @@ class Paper:
         self.next_id = 1
         self.next_shadow = 1
         self.last_reconcile = 0.0
+        # Honest cost accounting (STRATEGY_RESEARCH.md 4a+5): taker fees
+        # on both legs of every close, and hourly funding accrual over
+        # the hold. Config is optional — defaults are the documented
+        # base fee schedule and funding on.
+        cc = h.get("costs", {}) or {}
+        self.taker_fee, fee_src = taker_fee_rate(
+            h.get("info_url", "https://api.hyperliquid.xyz/info"),
+            cc.get("account"))
+        self.funding = FundingLedger(
+            h.get("info_url", "https://api.hyperliquid.xyz/info")) \
+            if cc.get("funding_accounting", True) else None
+        log(f"cost accounting: taker fee {self.taker_fee:.5%} ({fee_src}); "
+            f"funding {'on' if self.funding else 'off'}")
         p = h["paper"]
         self.csv_path = p["paper_trades_csv"]
         self.dec_path = p["decision_log"]
@@ -292,6 +306,25 @@ class Paper:
                                 pct=float(a.get("pct", 1.0)),
                                 fresh_size=fresh)
 
+    # -- cost accounting -------------------------------------------------
+
+    def _leg_costs(self, coin: str, side: str, size: float,
+                   entry_px: float, exit_px: float,
+                   entry_ts: float, exit_ts: float) -> tuple[float, float]:
+        """(fees_usd, funding_usd) for one closed leg.
+
+        Fees are the resolved taker rate on entry + exit notional.
+        Funding is the signed hourly accrual (positive = earned); 0.0
+        when funding accounting is disabled or the history fetch
+        fails. For partial closes the funding leg is approximated on
+        the closed size over the full hold.
+        """
+        fees = self.taker_fee * size * (entry_px + exit_px)
+        funding_pnl = self.funding.accrue(coin, side, size * entry_px,
+                                          entry_ts, exit_ts) \
+            if self.funding else 0.0
+        return round(fees, 4), round(funding_pnl, 4)
+
     # -- shadow positions --------------------------------------------------
 
     def open_shadow(self, a: dict, fill: dict) -> None:
@@ -321,15 +354,21 @@ class Paper:
     def close_shadow(self, sid: int, px: float, ts: float, reason: str) -> None:
         s = self.shadows.pop(sid)
         sign = 1 if s["side"] == "long" else -1
-        pnl = (px / s["entry_px"] - 1.0) * sign * s["entry_px"] * s["size"]
+        price_pnl = (px / s["entry_px"] - 1.0) * sign \
+            * s["entry_px"] * s["size"]
+        fees, funding_pnl = self._leg_costs(s["coin"], s["side"],
+                                            s["size"], s["entry_px"], px,
+                                            s["entry_ts"], ts)
+        pnl = price_pnl - fees + funding_pnl
         row = {"shadow_id": sid, "target": s["target"], "coin": s["coin"],
                "side": s["side"], "entry_ts": int(s["entry_ts"]),
                "entry_px": s["entry_px"], "size": s["size"],
                "exit_ts": int(ts), "exit_px": px, "exit_reason": reason,
-               "pnl_usd": round(pnl, 4), "skip_reason": s["skip_reason"]}
+               "pnl_usd": round(pnl, 4), "skip_reason": s["skip_reason"],
+               "fees_usd": fees, "funding_usd": funding_pnl}
         self._append(self.shadow_path, SHADOW_FIELDS, row, True)
         log(f"SHADOW CLOSE #{sid} {s['coin']} reason={reason} "
-            f"pnl {pnl:+.2f} USD")
+            f"pnl {pnl:+.2f} USD (fees {fees:.4f}, funding {funding_pnl:+.4f})")
 
     # -- closes ------------------------------------------------------------
 
@@ -345,15 +384,21 @@ class Paper:
         if close_sz <= EPS:
             return
         sign = 1 if pos["size"] > 0 else -1
-        pnl = (px / pos["entry_px"] - 1.0) * sign * close_sz * pos["entry_px"]
+        price_pnl = (px / pos["entry_px"] - 1.0) * sign \
+            * close_sz * pos["entry_px"]
         pnl_pct = (px / pos["entry_px"] - 1.0) * sign * 100.0
+        fees, funding_pnl = self._leg_costs(
+            key[1], "long" if sign > 0 else "short", close_sz,
+            pos["entry_px"], px, pos["entry_ts"], ts)
+        pnl = price_pnl - fees + funding_pnl
         row = {"trade_id": self.next_id, "mode": "paper",
                "target": pos.get("label", key[0]), "coin": key[1],
                "side": "long" if sign > 0 else "short",
                "entry_ts": int(pos["entry_ts"]), "entry_px": pos["entry_px"],
                "size": round(close_sz, 8), "exit_ts": int(ts),
                "exit_px": px, "exit_reason": reason,
-               "pnl_usd": round(pnl, 4), "pnl_pct": round(pnl_pct, 4)}
+               "pnl_usd": round(pnl, 4), "pnl_pct": round(pnl_pct, 4),
+               "fees_usd": fees, "funding_usd": funding_pnl}
         self.next_id += 1
         self._append(self.csv_path, PAPER_FIELDS, row, True)
         self.risk.record_close(pnl, pos.get("target", ""), ts)
@@ -369,9 +414,10 @@ class Paper:
         self.decide({"ts": int(ts) or None, "decision": "close",
                      "target": pos.get("label"),
                      "coin": key[1], "reason": reason, "pct": pct,
-                     "pnl_usd": round(pnl, 4)})
+                     "pnl_usd": round(pnl, 4),
+                     "fees_usd": fees, "funding_usd": funding_pnl})
         log(f"PAPER CLOSE {key[1]} {pct*100:.0f}% @ {px} reason={reason} "
-            f"pnl {pnl:+.2f} USD")
+            f"pnl {pnl:+.2f} USD (fees {fees:.4f}, funding {funding_pnl:+.4f})")
 
     # -- event loop --------------------------------------------------------
 
