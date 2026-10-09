@@ -16,4 +16,4 @@ RISK = RiskConfig(
     allow_shorts=True,
 )
 
-WARMUP = 60
+WARMUP = 540

@@ -10,8 +10,11 @@ import pandas as pd
 
 from strategies import base as B
 
-ENTRY_N = 20
-EXIT_N = 10
+ENTRY_N = 480  # 20 days on 1h bars — the true Turtle timeframe.
+# Calibration 2026-10-09: 20/10-bar channels on 1h lost -15% (BTC) / -15%
+# (ETH) over Mar-Oct 2026; the edge only appears at the daily scale
+# (480/240: BTC +4.4%, Sharpe 0.74). Shorter channels trade noise.
+EXIT_N = 240
 ADX_N = 14
 ADX_MIN = 20.0
 
