@@ -35,6 +35,16 @@ judge; on this 7-month crypto window it does not clear the bar as a
 single-strategy book. Candidate for a multi-strategy ensemble sleeve, not
 for capital on its own.
 
+## External validation
+
+Independent walk-forward study (Wataru Suda, dev.to, Sep 2026) of a
+20/10 Donchian + SMA50 filter + 2xATR stop on daily crypto bars,
+2018–2026: stitched out-of-sample Sharpe **0.85** (in-sample 1.11),
+beating re-optimized params in 4 of 6 OOS years. Converges with our
+calibration finding: the Donchian edge lives at the daily scale with a
+trend filter, not on intraday bars.
+https://dev.to/wataru_suda_d295dab9cca4f/your-backtest-is-lying-to-you-walk-forward-analysis-and-the-deflated-sharpe-ratio-in-plain-python-36d7
+
 ## Limitations
 
 - Single 7-month window, choppy-to-bearish crypto regime; no bull-market sample.
