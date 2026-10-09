@@ -131,26 +131,22 @@ def supertrend(h, l, c, n: int = 10, k: float = 3.0):
 
     a = atr(h, l, c, n)
     hl2 = (h + l) / 2
-    basic_ub = hl2 + k * a
-    basic_lb = hl2 - k * a
-    ub = basic_ub.copy()
-    lb = basic_lb.copy()
-    direction = pd.Series(np.ones(len(c)), index=c.index)
-    final_ub = np.full(len(c), np.nan)
-    final_lb = np.full(len(c), np.nan)
-
-    ub_v = basic_ub.to_numpy()
-    lb_v = basic_lb.to_numpy()
+    ub_v = (hl2 + k * a).to_numpy()
+    lb_v = (hl2 - k * a).to_numpy()
     c_v = c.to_numpy()
-    fub = np.full(len(c), np.nan)
-    flb = np.full(len(c), np.nan)
-    d = np.ones(len(c))
-    for i in range(len(c)):
-        if i == 0:
-            fub[i] = ub_v[i]
-            flb[i] = lb_v[i]
-            d[i] = 1
-            continue
+    m = len(c)
+    fub = np.full(m, np.nan)
+    flb = np.full(m, np.nan)
+    d = np.full(m, np.nan)
+    # start at first bar with a valid ATR (avoids NaN poisoning the bands)
+    valid = np.where(~np.isnan(ub_v) & ~np.isnan(lb_v))[0]
+    if len(valid) == 0:
+        return pd.DataFrame({"supertrend": fub, "supertrend_dir": d}, index=c.index)
+    j = valid[0]
+    fub[j] = ub_v[j]
+    flb[j] = lb_v[j]
+    d[j] = 1.0 if c_v[j] >= (ub_v[j] + lb_v[j]) / 2 else -1.0
+    for i in range(j + 1, m):
         fub[i] = ub_v[i] if (ub_v[i] < fub[i - 1] or c_v[i - 1] > fub[i - 1]) else fub[i - 1]
         flb[i] = lb_v[i] if (lb_v[i] > flb[i - 1] or c_v[i - 1] < flb[i - 1]) else flb[i - 1]
         if d[i - 1] == 1:
