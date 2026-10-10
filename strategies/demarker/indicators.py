@@ -27,10 +27,11 @@ def demarker(h: pd.Series, l: pd.Series, n: int = PERIOD) -> pd.DataFrame:
     sma_max = B.sma(demax, n)
     sma_min = B.sma(demin, n)
     denom = sma_max + sma_min
-    dem = sma_max / denom
-    # guard: both legs zero (dead-flat market) -> 0.5
-    dem = dem.where(denom > 0, 0.5)
-    dem = dem.clip(0.0, 1.0)
+    raw = sma_max / denom
+    # guard: both legs zero (dead-flat market) -> 0.5; keep NaN where the
+    # SMA window isn't full yet.
+    val = np.where(denom > 0, raw, np.where(denom == 0, 0.5, np.nan))
+    dem = pd.Series(val, index=h.index).clip(0.0, 1.0)
     return pd.DataFrame({"demax": demax, "demin": demin, "dem": dem})
 
 
