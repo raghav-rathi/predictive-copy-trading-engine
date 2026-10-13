@@ -136,7 +136,7 @@ class TestTdSequential(unittest.TestCase):
     def test_risk_sanity(self):
         r = risk.RISK
         self.assertGreater(r.stop_atr_mult, 0)
-        self.assertEqual(r.max_hold_bars, 48)
+        self.assertEqual(r.max_hold_bars, 96)  # calibrated value
         self.assertTrue(0 < r.risk_frac < 1)
         self.assertGreaterEqual(r.max_leverage, 1.0)
         self.assertIsNone(r.trail_atr_mult)
