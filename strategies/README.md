@@ -1,60 +1,22 @@
-# Technical Strategy Engine Library
+# Technical Strategy Library — batch 4 (2026-10-13)
 
-Long/short signal engines on Hyperliquid-style OHLCV data. Each strategy is a
-self-contained subpackage with indicators, signal logic, risk config, unit
-tests, and an empirical backtest note — all **paper-first**: historical
-candles and paper signals only, no live execution anywhere by design.
+Twelve real, tested, empirically-validated signal engines on
+`feat/strat-iter-20261013-a`, merged from three build batches (a/b/c).
+Each strategy is a self-contained subpackage:
 
-## Layout
+    strategies/<slug>/indicators.py   -- indicator computation (pure pandas/numpy)
+    strategies/<slug>/signals.py       -- entry/exit signal logic
+    strategies/<slug>/risk.py         -- stops, trailing, targets, sizing config
+    strategies/<slug>/test_<slug>.py  -- unit tests (green)
+    strategies/<slug>/BACKTEST.md     -- empirical validation on Hyperliquid 1h candles
+    strategies/<slug>/CALIBRATION.md  -- parameter sweep notes
 
-```
-strategies/
-  base.py        indicator primitives + signal/risk conventions
-  data.py        Hyperliquid candle loader (candleSnapshot) + disk cache
-  backtest.py    event-driven backtest harness (fees, slippage, funding)
-  registry.py    strategy registry
-  <slug>/
-    indicators.py   add_indicators(df) -> df
-    signals.py      add_signals(df) -> df  (long_entry/short_entry/long_exit/short_exit)
-    risk.py         RiskConfig (stops, trailing, targets, sizing)
-    test_<slug>.py  unit tests on synthetic data (network-free)
-    BACKTEST.md     empirical results on real candles + calibration note
-```
+Shared infra in this branch: `base.py` (signal conventions, indicator
+primitives, `RiskConfig`/`StrategySpec`), `registry.py`, `data.py`
+(Hyperliquid candle loader + disk cache), `backtest.py` (event-driven
+harness: fees, slippage, funding; no lookahead), `tests/test_infra.py`.
 
-## Execution model
+Paper-first: everything runs on historical candles / paper signals only.
+No live execution is wired anywhere in this package by design.
 
-Signals are computed on bar *i* close and executed at bar *i+1* open (no
-lookahead). Risk exits (ATR hard stop, chandelier trailing, ATR target,
-max-hold) are checked intrabar and take priority. One position at a time.
-
-Costs: 0.045% taker fee + 0.01% slippage per side; hourly funding accrual
-from `fundingHistory` (positive rate = longs pay shorts). Sizing risks 1% of
-equity per trade on the hard-stop distance, notional capped at 3x equity.
-
-## Running a backtest
-
-```python
-from strategies.data import fetch_candles
-from strategies.backtest import run_backtest
-from strategies.donchian import indicators, signals, risk
-
-df = fetch_candles("BTC", "1h", lookback_days=365)
-df = indicators.add_indicators(df)
-df = signals.add_signals(df)
-res = run_backtest(df, risk.RISK, coin="BTC", interval="1h", warmup=60)
-print(res.metrics())
-```
-
-## Strategies
-
-See `registry.py` (`list_strategies()`); each `<slug>/BACKTEST.md` carries the
-honest numbers — winners and losers both.
-
-## Batch 3 — 2026-10-12 (14 new engines, consolidated on this branch)
-
-Six Wilder/classic systems (`adx_dmi`, `cci_woodies`, `hull_ma`, `aroon`,
-`trix`, `kst`), five more classics (`stoch_rsi`, `mfi`, `obv_trend`,
-`pivot_breakout`, `lsma_slope`), and three fresh 2026 builds
-(`funding_squeeze_reversal`, `asia_sweep`, `dual_bear_short`). Full results
-in `STRATEGY_SUMMARY.md`. `pivot_breakout` is the batch's only new winner —
-thin (PF ~1.06, −20% drawdowns), but positive on all three coins.
+See STRATEGY_SUMMARY.md for the batch scorecard.
