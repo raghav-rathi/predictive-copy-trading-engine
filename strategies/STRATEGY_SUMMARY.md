@@ -100,3 +100,69 @@ Net return % by coin (Sharpe in parens):
 dual_thrust joins williams_breakout and bollinger_squeeze as
 positive-or-flat on all three coins — the only three of 32 that clear it.
 Everything else stays research material. Nothing is for live capital.
+
+---
+
+# Batch 3 — 2026-10-12 (14 new strategies, 84 build commits + consolidation)
+
+14 engines built in parallel tracks and consolidated here: six classic/Wilder
+systems, five more classics, and three fresh 2026 mechanisms (funding squeeze
+reversal, Asia session sweep, dual-bear pullback short). Each: indicators +
+signals + risk config + unit tests (369 green across the consolidated tree)
++ backtest on real Hyperliquid 1h candles (2026-03-14 → 2026-10-12,
+~5,080 bars/coin). Costs: 0.045% taker + 0.01% slippage/side. Sizing: 1% risk
+per trade, 3x leverage cap, $10k start. funding_squeeze_reversal also accrues
+real hourly funding.
+
+Net return % by coin (Sharpe in parens):
+
+| Strategy | BTC | ETH | HYPE | Verdict |
+|---|---|---|---|---|
+| adx_dmi (Wilder, ADX≥25) | -5.2 (-0.50) | -10.0 (-1.49) | -11.8 (-1.87) | loser |
+| cci_woodies (hook ±100) | -50.2 (-4.15) | -54.8 (-4.78) | +18.9 (+1.22) | mixed |
+| hull_ma (HMA 16) | -69.0 (-7.39) | -50.9 (-3.98) | -38.5 (-3.02) | loser |
+| aroon (Aroon 25) | -16.3 (-1.15) | +11.9 (+0.91) | +22.9 (+1.51) | mixed |
+| trix (TRIX 15) | -2.7 (+0.02) | +0.6 (+0.16) | +53.3 (+2.95) | mixed |
+| kst (Pring, signal 9) | -26.9 (-1.81) | -26.2 (-1.77) | +39.0 (+2.13) | mixed |
+| stoch_rsi (Chande&Kroll) | -52.9 (-5.14) | -40.1 (-3.44) | -48.5 (-5.12) | loser |
+| mfi (Quong&Soudack) | +3.0 (+0.33) | -38.2 (-3.46) | -22.0 (-1.92) | loser |
+| obv_trend (Granville) | -56.4 (-4.00) | -38.3 (-2.15) | -7.0 (-0.27) | loser |
+| pivot_breakout (floor pivots) | +5.4 (+0.43) | +8.4 (+0.56) | +5.2 (+0.43) | **WINNER** (thin) |
+| lsma_slope (LSMA 21) | -30.9 (-1.52) | -54.0 (-3.41) | +31.7 (+1.59) | mixed |
+| funding_squeeze_reversal | 0 trades | +$52 (1 trade) | +$385, PF 2.08 (16 trades, 68.8% WR) | mixed |
+| asia_sweep | -12.1 (-1.49) | -9.6 (-1.01) | -13.1 (-1.75) | loser |
+| dual_bear_short | 0 trades | -$12 (1 trade) | 0 trades | port failure (no-signal) |
+
+## Read it straight
+
+- **pivot_breakout is the batch's only clean winner** — positive on all three
+  coins with positive Sharpe, ~108 trades/coin, stop sweep {1.5,2.0,2.5}xATR
+  all positive. Honest caveat: PF ~1.06 and −20% drawdowns — a legitimate
+  low-win-rate breakout system, not a reliable engine.
+- **HYPE momentum is the batch's real signal.** trix (+53.3%, Sharpe 2.95,
+  526 trades), kst (+39.0%, Sharpe 2.13), cci_woodies (+18.9%), and
+  funding_squeeze_reversal (+$385, PF 2.08 on HYPE alone) all print on HYPE
+  while BTC/ETH chop kills the same mechanics. That is 4 independent engines
+  pointing the same way — a HYPE-momentum sleeve deserves its own study.
+- **Classic oscillators don't survive 1h crypto.** stoch_rsi (1,339 trades),
+  obv_trend (1,445), hull_ma (1,916), lsma_slope (1,158) — churn is the
+  killer again: fee drag overwhelms any edge. mfi's BTC +3% is fee-level
+  noise (PF 1.04); fading volume-backed momentum fails on 1h perps.
+- **Session narratives don't port.** asia_sweep (stop-hunt reversal,
+  PF 5.35 on XAUUSD per its author) loses uniformly on crypto (PF 0.58–0.71);
+  depth sweep confirms structural failure. The forex liquidity story doesn't
+  transfer to 24/7 tape.
+- **Selectivity can be a no-signal trap.** dual_bear_short's four-condition
+  gate fires ~0–1× per coin per 7 months — the port is unevaluable, not
+  falsified. funding_squeeze_reversal's author thresholds (+0.030%/8h) are
+  unreachable on HL's tame funding — BTC sat flat all 7 months; the edge, if
+  any, only lives on wild-funding coins like HYPE.
+
+## Sleeve bar update (all three batches)
+
+pivot_breakout joins williams_breakout, bollinger_squeeze, and dual_thrust as
+positive-or-flat on all three coins — the only four of 47 that clear it.
+HYPE-momentum (trix, kst, cci_woodies, funding_squeeze_reversal) is the
+strongest single-regime pattern in the library and the leading candidate for
+a dedicated sleeve study. Everything else stays research material. Nothing is
+for live capital.

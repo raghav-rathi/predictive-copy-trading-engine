@@ -49,3 +49,12 @@ print(res.metrics())
 
 See `registry.py` (`list_strategies()`); each `<slug>/BACKTEST.md` carries the
 honest numbers — winners and losers both.
+
+## Batch 3 — 2026-10-12 (14 new engines, consolidated on this branch)
+
+Six Wilder/classic systems (`adx_dmi`, `cci_woodies`, `hull_ma`, `aroon`,
+`trix`, `kst`), five more classics (`stoch_rsi`, `mfi`, `obv_trend`,
+`pivot_breakout`, `lsma_slope`), and three fresh 2026 builds
+(`funding_squeeze_reversal`, `asia_sweep`, `dual_bear_short`). Full results
+in `STRATEGY_SUMMARY.md`. `pivot_breakout` is the batch's only new winner —
+thin (PF ~1.06, −20% drawdowns), but positive on all three coins.
