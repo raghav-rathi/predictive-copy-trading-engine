@@ -193,10 +193,18 @@ def ichimoku(h, l, c, tenkan: int = 9, kijun: int = 26, senkou: int = 52):
 
 
 def crossed_above(a, b):
+    import pandas as pd
+
+    if not hasattr(b, "shift"):  # scalar level -> broadcast to a's index
+        b = pd.Series(b, index=a.index)
     return (a > b) & (a.shift(1) <= b.shift(1))
 
 
 def crossed_below(a, b):
+    import pandas as pd
+
+    if not hasattr(b, "shift"):  # scalar level -> broadcast to a's index
+        b = pd.Series(b, index=a.index)
     return (a < b) & (a.shift(1) >= b.shift(1))
 
 
