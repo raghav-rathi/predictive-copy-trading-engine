@@ -29,7 +29,7 @@ INTERVAL_MS = {
     "1d": 86_400_000,
 }
 
-MAX_PER_CALL = 5000
+MAX_PER_CALL = 1000  # small chunks: large candleSnapshot responses get truncated (IncompleteRead)
 
 
 def _post(payload: dict, timeout: int = 30) -> object:
@@ -88,14 +88,15 @@ def fetch_candles(
     cur = start
     while cur < end:
         nxt = min(cur + MAX_PER_CALL * step, end)
-        for attempt in range(4):
+        for attempt in range(40):
             try:
                 rows.extend(_fetch_window(coin, interval, cur, nxt))
                 break
-            except Exception:
-                if attempt == 3:
-                    raise
-                time.sleep(1.5 * (attempt + 1))
+            except Exception as exc:
+                if attempt == 39:
+                    raise RuntimeError(f"candle fetch failed for {coin} {interval} "
+                                       f"window {cur}-{nxt} after retries: {exc}")
+                time.sleep(min(2.0 * (attempt + 1), 15.0))
         cur = nxt
         time.sleep(pace_s)
 
