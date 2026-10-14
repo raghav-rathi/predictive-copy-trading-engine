@@ -204,6 +204,25 @@ Honest verdicts — losers named.
 | rsi_extreme_edge | @Vision33X / visioneth rsi-extreme-edge (RSI(14) 1H: >90 cross-back short, <10 cross-back long; ATR 1.5x stop, 1.5R target) | **Unvalidatable on 1h**: 4 trades in 7 months. Author's coin-personality findings can't be confirmed/denied at this timeframe |
 | jhadchiti_trend | jhadchiti crypto-trading-system (55-bar breakout + BTC SMA(200) regime + ±20bp/8h funding filter + coin-vs-BTC momentum) | **Mixed**: ETH +$556 (23.4% WR, 3.75x win/loss skew — author's profile; positive in 7/9 param combos); HYPE -$1,268; BTC 0 trades by construction (benchmark degenerate in momentum filter) |
 
+## Batch 5 (2026-10-14) — named-author classic-indicator sweep
+
+10 strategies from documented, named-author mechanisms (Coppock, Blau,
+Klinger, Chande x2, Chaikin, Elder, Mark Johnson, ChartSchool DPO, BTC
+RSI+Bollinger reference). 1h bars, 2026-03-20 → 2026-10-14.
+
+| slug | source | result |
+|---|---|---|
+| coppock_curve | E.S. Coppock 1962 (WMA10 of ROC14+ROC11, zero-cross) | **HYPE +$5,015 (+50.2%, Sharpe 2.61)** — batch-5 best; BTC/ETH losers. Coin-scoped, not general |
+| smi_ergodic | Blau SMI Ergodic (double-EMA momentum, 5-bar signal, zero-gate) | Loser everywhere (−$7,736 combined, −$8.45/trade). Lag is structural |
+| klinger_oscillator | Klinger Volume Oscillator (VF, 34/55 EMAs, 13 signal) | Loser everywhere (−$9,971, 1,742 trades). 1h volume force is chop noise |
+| qstick | Chande Qstick (SMA8 of bodies, zero-cross) | **Worst in batch**: −$17,746, 2,571 trades, 26.6% WR. Noise trigger |
+| rsi_bollinger | Bollinger Bands (20, 2σ) on RSI(14), midline exits | 47.4% WR and −$13,075 anyway — negative-skew machine. Killed |
+| cmf_trend | Chaikin Money Flow (21) zero-cross + 200-SMA regime | Loser (−$6,658); HYPE +3.2% is noise (Sharpe 0.36) |
+| chande_cmo | Chande Momentum Oscillator (±50 crosses, zero-line exits) | Loser everywhere incl. HYPE (−22.7%). Timing inverted for 1h |
+| elder_ray | Elder Bull/Bear Power vs EMA(13), exhaustion entries | Loser (−$5,347); HYPE +5.4% noise. Single-bar turn detection too fast |
+| dpo_cycle | Detrended Price Oscillator, causal displacement, zero-cross | Loser (−$5,835). Causal DPO is a lagged momentum osc, not a cycle timer |
+| pgo | Mark Johnson Pretty Good Oscillator (±1.0 thrust entries) | Least-bad loser (−$4,785); HYPE +6.8% (Sharpe 0.54). Exit logic suspect |
+
 ## Empirical direction
 
 Exhaustion counters (TD Sequential) and double-smoothed momentum (TSI on
@@ -212,3 +231,9 @@ systems (Holy Grail, Raschke Anti, Force Index) fail decisively on 1h crypto.
 HYPE remains the friendliest coin for momentum systems; BTC 1h chop kills
 unfiltered oscillators. Per-coin, per-strategy detail lives in each
 strategy's BACKTEST.md / CALIBRATION.md.
+
+Batch-5 addendum: slow regime systems (Coppock on HYPE, +50.2%) are the
+only thing that worked; fast oscillator triggers (Qstick, Klinger, SMI,
+CMO) all died on whipsaw, and the RSI+Bollinger mean-reversion showed
+that a high win rate (47%) with negative skew still loses −$13k.
+Causal DPO confirmed as a descriptive-not-predictive indicator.
