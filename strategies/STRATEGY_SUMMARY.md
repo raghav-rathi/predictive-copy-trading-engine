@@ -48,3 +48,55 @@ williams_breakout and bollinger_squeeze (positive-or-flat on all three,
 right-shaped risk profiles). Everything else is research material until
 it proves itself on more coins and longer windows. Nothing here is for
 live capital as a standalone.
+
+---
+
+# Batch 2 — 2026-10-10 (10 new strategies, 60 commits)
+
+10 classic published systems, each: indicators + signals + risk config +
+unit tests (96 green across the batch) + backtest on real Hyperliquid 1h
+candles (2026-03-14 → 2026-10-10, ~5,030 bars/coin). Costs: 0.045% taker +
+0.01% slippage/side. Sizing: 1% equity risk/trade, 3x leverage cap, $10k.
+
+Net return % by coin (Sharpe in parens):
+
+| Strategy | BTC | ETH | HYPE | Verdict |
+|---|---|---|---|---|
+| dual_thrust (0.7/0.7) | +3.9 (0.91) | +10.3 (1.41) | +13.9 (2.03) | **WINNER** |
+| chandelier_exit | -21.8 (-1.43) | -3.4 (-0.06) | +17.0 (1.06) | mixed |
+| darvas_box | -11.7 (-1.68) | +27.1 (1.82) | +4.4 (0.49) | mixed |
+| kama_trend | -21.6 (-3.06) | -6.6 (-0.82) | +8.9 (1.11) | mixed |
+| awesome_oscillator | -0.6 (-0.08) | -15.3 (-0.57) | +1.6 (0.25) | mixed/leaning loser |
+| parabolic_sar | -25.6 (-1.97) | -16.7 (-1.17) | +3.1 (0.35) | loser |
+| connors_rsi | -13.4 (-3.76) | -12.5 (-2.88) | -10.8 (-2.78) | loser |
+| gmma | -21.8 (-1.71) | -25.2 (-2.09) | -10.5 (-0.78) | loser |
+| demarker | -29.3 (-2.51) | -17.1 (-1.39) | -35.0 (-3.72) | loser |
+| nr7 | -57.0 (-3.44) | -33.6 (-1.49) | -55.0 (-4.06) | loser |
+
+## Read it straight
+
+- **dual_thrust is the batch's only clean winner**: positive on all three
+  coins with positive Sharpe everywhere (BTC +3.9%, ETH +10.3%, HYPE
+  +13.9%, PF up to 3.70). Caveat: only 50 combined trades — the Sharpe is
+  fragile. The K-sweep (0.5/0.7/0.9) shows 0.7 sits in a stable region, not
+  on a knife edge. Needs walk-forward validation before any sleeve talk.
+- **HYPE flatters trend systems again** (chandelier +17%, darvas +4.4%,
+  kama +8.9%): same regime artifact as batch 1 — these systems print on
+  the one trending coin and bleed on BTC/ETH chop.
+- **Churn is the killer on 1h**: nr7 (1,086 trades), parabolic_sar
+  (1,301), awesome_oscillator (687), demarker (737) — fee drag of
+  $5k–$8k combined per strategy. Daily-bar originals (Crabel NR7, Wilder
+  SAR, Connors R3, Guppy GMMA) lose their edge's rarity/selectivity at 1h.
+- **Port failures, honestly labeled**: connors_rsi (daily equity →
+  1h crypto), nr7 (daily futures → 1h crypto), gmma (daily + compression
+  filter omitted → 1h), parabolic_sar (1978 commodity dailies → 1h;
+  the slower AF 0.01→0.10 variant recovers most of it — parametric, not
+  structural). darvas_box's volume filter earned its keep in the sweep.
+- **kama_trend's n=14 ER-window variant** (+$50 combined, HYPE Sharpe
+  2.02) is the one variant across the batch worth walk-forward testing.
+
+## Sleeve bar update (both batches)
+
+dual_thrust joins williams_breakout and bollinger_squeeze as
+positive-or-flat on all three coins — the only three of 32 that clear it.
+Everything else stays research material. Nothing is for live capital.
