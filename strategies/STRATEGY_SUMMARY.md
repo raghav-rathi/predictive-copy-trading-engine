@@ -237,3 +237,42 @@ only thing that worked; fast oscillator triggers (Qstick, Klinger, SMI,
 CMO) all died on whipsaw, and the RSI+Bollinger mean-reversion showed
 that a high win rate (47%) with negative skew still loses −$13k.
 Causal DPO confirmed as a descriptive-not-predictive indicator.
+
+## Batch 6 (2026-10-15) — volume-price & adaptive-average systems
+
+10 strategies from documented, named-author mechanisms (Granville,
+Arms, Dysart/Fosback, Chaikin, McGinley, Tillson, Ehlers de-lagged
+ZLEMA, Glaz, Wyckoff, renko). 1h bars, 2026-03-20 → 2026-10-15
+(BTC 5,152 bars; ETH 5,152; HYPE 5,150). Costs: 0.045% taker + 0.01%
+slippage/side. Sizing: 1% equity risk/trade, 3x leverage cap, $10k.
+
+| slug | source | result |
+|---|---|---|
+| pvt_trend | Granville Price-Volume Trend (PVT/MA20 cross) | Loser on majors (−32%/−44%), HYPE +17.7% (Sharpe 1.02). Regime-dependent |
+| ease_of_movement | Arms EMV(14) zero-cross | Loser everywhere (−49.5%/−57.6%/−13.2%, 1,760 trades). Killed |
+| nvi_pvi | Dysart/Fosback NVI/EMA255 + PVI filter | Loser (−$2,715, expectancy −$10.52/trade). 255-bar "regime" ≠ 255-day regime |
+| chaikin_osc | Chaikin Oscillator (3,10) zero-cross | Loser everywhere (−$16,056, 1,798 trades); (2,6) variant −$22,667. Killed |
+| mcginley_dynamic | McGinley MD(10)/MD(30) cross | **Batch best**: combined +$2,640, BTC +27.4% (Sharpe 1.47), HYPE +16.7% (1.13). ETH −11.7% weak leg |
+| t3_trend | Tillson T3(5)/T3(15) cross, a=0.7 | Mixed: HYPE +30.3% (Sharpe 1.54), majors losers, combined −$1,301 |
+| zlema_cross | De-lagged ZLEMA(10)/ZLEMA(30) cross | Loser on majors (−62.8%/−45.7%); "zero lag" = faster whipsaw. Slow (20,60) variant flips positive |
+| qqe | Glaz QQE Fast-TL/Slow-TL cross (4.236) | **HYPE star**: +61.8% (Sharpe 2.48, PF 1.29); majors −40%/−37%. Coin-scoped |
+| wyckoff_spring | Wyckoff spring/upthrust, 50-bar range | Mixed: ETH +25.8% (1.14) on 20% win rate = lottery; BTC/HYPE losers |
+| renko_trend | 0.5xATR renko brick reversals | **Worst in batch**: −$19,662, 2,571 trades, Sharpe −7.44 BTC. Killed |
+
+## Empirical direction
+
+Slower beats faster in every calibration sweep this batch (PVT MA40,
+EMV28, NVI EMA500, CHO 6/21, MD 20/60, T3 8/21, ZLEMA 20/60, brick
+1.0xATR all beat their fast counterparts) — 1h churn is the structural
+killer, and de-lagging/fast smoothing just manufactures whipsaw. The two
+systems worth remembering are both slow adaptive MAs: McGinley (the only
+positive-combined system in the batch) and QQE-on-HYPE (+61.8%, the
+batch's best single print, same HYPE-momentum story as Coppock). Renko
+confirmed as a fee-donation machine on 1h perps. Per-coin, per-strategy
+detail lives in each strategy's BACKTEST.md / CALIBRATION.md.
+
+Batch-6 addendum: the "volume" half of the theme mostly failed —
+EMV, Chaikin, NVI/PVI, PVT all lose on majors — because 1h volume flow
+is bar-noise, not the multi-day accumulation these authors designed
+for. The adaptive-average half (McGinley, T3, ZLEMA-slow, QQE) is where
+the batch's only wins live.
