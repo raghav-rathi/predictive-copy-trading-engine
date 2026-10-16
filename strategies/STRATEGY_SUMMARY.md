@@ -276,3 +276,46 @@ EMV, Chaikin, NVI/PVI, PVT all lose on majors — because 1h volume flow
 is bar-noise, not the multi-day accumulation these authors designed
 for. The adaptive-average half (McGinley, T3, ZLEMA-slow, QQE) is where
 the batch's only wins live.
+
+## Batch 7 (2026-10-16) — published systems + classic patterns
+
+12 strategies from documented, named-author mechanisms (Shannon, Ehlers,
+L. Williams x2, Wilder-lineage divergence, classic price action, Raschke,
+Bonde, Minervini, Dorsey/Wheeler, Gann). 1h bars, 2026-03-14 → 2026-10-15
+(BTC/ETH 5,157 bars; HYPE 5,155). Costs: 0.045% taker + 0.01% slippage/side.
+Sizing: 1% equity risk/trade, 3x leverage cap, $10k. 111 unit tests green.
+
+| slug | source | result |
+|---|---|---|
+| anchored_vwap | Shannon AVWAP reclaim (fractal anchors) | HYPE +19.6% (Sharpe 1.69); BTC −22.9%, ETH −14.2%. Coin-scoped |
+| rvi_ehlers | Ehlers RVI / weighted signal-line cross | BTC +16.1% (0.89); ETH −4.1%, HYPE −19.5%. Unfiltered = whipsaw |
+| ultimate_osc | Williams UO(7,14,28) divergence (1985 rules) | Loser everywhere (−19.1%/−9.2%/−7.6%). Divergence marks pauses, not reversals |
+| rsi_divergence | RSI(14) regular divergence + confirmation | −3.8%/−4.3%/−5.9%, 22 trades. Too sparse; pivot lag eats entries |
+| inside_bar | Inside-bar mother-bar breakout, EMA50 bias | HYPE +10.1% (0.83); BTC −15.1%, ETH −0.9%. Chop victim on majors |
+| raschke_tail | Raschke "Tail" at 20-bar extremes | Loser everywhere (−18.1%/−5.9%/−5.9%) |
+| episodic_thrust | Bonde Episodic Pivot (crypto volume/range proxy) | 8 trades in 7 months (−2.3%/+0.6%/+2.1%). Inconclusive — no edge shown |
+| williams_pct_r | Williams %R 5-bar extreme trigger (1979) | **Worst in batch**: −40.9%/−43.1%/−48.3%, 890 trades. Trigger wrong for 1h |
+| minervini_trend | Minervini Trend Template (long-only) | 7 trades, UNTESTABLE — 4,900-bar warmup leaves ~258 tradeable bars |
+| point_figure | P&F 3-box reversal, 0.5xATR boxes | **Batch winner**: +10.8%/+8.7%/+13.1% all green. Thin PFs (1.05–1.12); walk-forward wanted |
+| gann_swing | Gann 1-bar/3-bar swing system | **Rejected**: −74.3%/−59.8%/−23.3%, 1,733 trades. 1-bar churn blowup |
+| key_reversal | Key reversal bar, 20-bar extreme | Mixed+: ETH +12.6% (1.79), HYPE +9.3% (1.32), BTC −3.1% |
+
+## Empirical direction
+
+Point & Figure is the batch's only all-coin winner — and it wins the way
+this library keeps winning: by being SLOW. Box-filtered trend capture beat
+every oscillator in the batch. But profit factors are 1.05–1.12 — a working
+edge, not a proven one; it needs walk-forward before any promotion talk.
+The HYPE-scoped story repeats: anchored_vwap (+19.6%) and inside_bar
+(+10.1%) print only on HYPE and bleed on BTC/ETH — same 2026-HYPE-parabola
+regime as batch 6's QQE, not general alpha. Divergence is dead on 1h:
+ultimate_osc, rsi_divergence, williams_pct_r all lose — on hourly crypto,
+momentum divergence marks a pause, not a reversal, and Williams' published
+%R trigger (−100, wait 5 bars, hook back) is the single worst system in the
+batch. Two honest non-results: minervini_trend cannot be evaluated (the
+200-day template needs a 4,900-bar warmup on 1h; 7 trades), and
+episodic_thrust's 8 trades say nothing — Bonde's catalyst mechanism does not
+port to hourly bars without real catalysts. Both are port failures, not
+strategy failures. Gann's 1-bar swing is the blowup (−74% BTC): single-bar
+direction changes are pure chop on 1h; the 3-bar trend half was fine, the
+1-bar timing half killed it.
