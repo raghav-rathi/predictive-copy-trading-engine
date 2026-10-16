@@ -69,6 +69,9 @@ config.example.json   All thresholds, caps, exit params; live_trading: false
 hyperliquid/          Hyperliquid perps copy engine: WS signal, scoring,
                       proportional mirror + Kelly cap, exits, reconcile,
                       paper-first runner (see hyperliquid/README.md)
+funding/              Delta-neutral funding farm: short perp + long spot on
+                      highest 7d-avg-funding coins, paper-only second book
+                      (see funding/README.md)
 docs/research/copy-engine-research.md  Open-source copy-bot research +
                       Hyperliquid mechanics that the hyperliquid/ module
                       is built on
