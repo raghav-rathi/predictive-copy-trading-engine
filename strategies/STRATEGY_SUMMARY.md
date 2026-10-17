@@ -319,3 +319,45 @@ port to hourly bars without real catalysts. Both are port failures, not
 strategy failures. Gann's 1-bar swing is the blowup (−74% BTC): single-bar
 direction changes are pure chop on 1h; the 3-bar trend half was fine, the
 1-bar timing half killed it.
+
+## Batch 8 (2026-10-17) — 12 systems: named-author classics + SMC mechanics
+
+12 strategies, each: indicators + signals + risk config + unit tests (63 green)
++ backtest on real Hyperliquid 1h candles (2026-03-14 → 2026-10-17, ~5,000
+bars/coin). Costs: 0.045% taker + 0.01% slippage/side. Sizing: 1% equity
+risk/trade, 3x leverage cap, $10k. Rough batch: 7 losers, 4 mixed, 1 flat.
+
+Net return % by coin (Sharpe in parens):
+
+| Strategy | BTC | ETH | HYPE | Verdict |
+|---|---|---|---|---|
+| momentum_pinball (Raschke LBR/RSI) | -67.7 (-5.16) | -69.5 (-5.62) | -55.0 (-3.89) | loser (port failure: 706 trades, costs eat 2x equity) |
+| tdi (Dean Malone TDI) | -83.6 (-12.95) | -82.1 (-12.19) | -75.1 (-11.54) | loser (1,282 trades of green/red whipsaw) |
+| half_trend (everget HalfTrend) | -10.9 (-1.57) | -7.5 (-1.20) | +1.0 (+0.21) | flat (33-40 trades; slow filter, no edge) |
+| vidya (Chande VIDYA) | -12.5 (-1.35) | -6.3 (-0.68) | -2.9 (-0.35) | loser (adaptivity ≠ edge) |
+| frama (Ehlers FRAMA) | -17.8 (-2.12) | -7.3 (-0.63) | -7.1 (-0.99) | loser (alpha correct, signal loses) |
+| liquidity_sweep (ICT stop-hunt fade) | -24.3 (-2.80) | -14.9 (-1.69) | -17.2 (-2.04) | loser (54-56% WR, negative skew: short the breakout tail) |
+| market_structure (BOS/CHoCH) | -30.8 (-1.93) | -31.3 (-1.93) | **+32.0 (+1.74)** | mixed (HYPE edge stable at (3,3) pivots: +32.9) |
+| candle_patterns (engulfing + pin) | -87.6 (-9.21) | -87.1 (-9.69) | -53.1 (-3.54) | loser (port failure: 1h patterns are noise) |
+| linreg_channel (Raff channel fade) | -52.5 (-4.29) | -47.0 (-3.90) | -41.2 (-3.43) | loser (tags fade into riding trends) |
+| choppiness (Dreiss CHOP + Donchian) | +6.2 (+0.70) | -27.1 (-3.35) | +6.9 (+0.81) | mixed (thin; regime gate works, ETH bleeds) |
+| vwma_cross (VWMA 20/50 + volume) | -5.9 (-0.65) | -2.5 (-0.20) | +20.0 (+1.87) | mixed/unstable ((10,30) moves the edge to ETH: fluke) |
+| ribbon_trend (EMA 8/13/21/34/55) | -14.3 (-1.41) | -18.0 (-2.09) | **+17.3 (+1.36)** | mixed (HYPE edge survives MIN_FAN=0.008: +26.2) |
+
+## Empirical direction
+
+The batch's lesson is costs and timeframe, not indicators. Momentum Pinball
+and candle_patterns are port failures of the same kind: systems designed for
+daily bars / first-hour entries that fire hundreds of times on 1h crypto —
+at 0.11% round-trip on ~3x notional, 700+ trades cost more than the account.
+TDI is the extreme: 1,282 green/red crosses, 24-29% win rate. The adaptive
+averages (VIDYA, FRAMA) verify perfectly as indicators and still lose —
+adaptivity solves lag, not direction. Liquidity-sweep is the interesting
+loser: 54-56% win rate, negative expectancy — fading hunts wins the small
+battles and pays the breakout tail. The HYPE regime story repeats for the
+fourth batch: market_structure (+32.0%, stable across pivot sizes) and
+ribbon_trend (+17.3%, better at stricter fan) print on HYPE and bleed on
+choppy BTC/ETH. vwma_cross is the cautionary tale: the (10,30) sweep moves
+the "edge" to ETH — when the winner changes coins with the parameter, it was
+never an edge. choppiness is the only system that wins by sitting out:
++6.2/+6.9 on 70-odd trades, and the honest counterweight is ETH −27.1%.

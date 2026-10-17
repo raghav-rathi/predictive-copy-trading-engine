@@ -40,3 +40,28 @@ each BACKTEST.md.
 Shared infra change in this batch: `base.crossed_above`/`crossed_below`
 now accept scalar levels (broadcast to the series index); Series behavior
 unchanged.
+
+---
+
+# Batch 8 (2026-10-17) — named-author classics + SMC mechanics
+
+Twelve more signal engines on `feat/strat-iter-20261017-batch8`, all from
+documented, named-author or published mechanisms: `momentum_pinball`
+(Raschke LBR/RSI, Street Smarts), `tdi` (Dean Malone Traders Dynamic
+Index), `half_trend` (everget HalfTrend ATR channel), `vidya` (Chande
+VIDYA), `frama` (Ehlers FRAMA), `liquidity_sweep` (ICT stop-hunt fade),
+`market_structure` (SMC BOS/CHoCH), `candle_patterns` (Nison engulfing +
+pin bars), `linreg_channel` (Raff regression channel), `choppiness`
+(Dreiss Choppiness Index + Donchian), `vwma_cross` (VWMA 20/50 + volume
+gate), `ribbon_trend` (EMA 8/13/21/34/55 ribbon). Same subpackage layout;
+63 new unit tests green. Backtests on Hyperliquid 1h candles (BTC/ETH/HYPE,
+2026-03-14 → 2026-10-17): rough batch — 7 losers, 4 mixed, 1 flat.
+`market_structure` wins on HYPE (+32.0%, Sharpe 1.74, stable at (3,3)
+pivots) and `ribbon_trend` prints HYPE +17.3% (+26.2% at stricter fan);
+both bleed on BTC/ETH. `vwma_cross` HYPE +20.0% is flagged unstable (the
+(10,30) sweep moves the edge to ETH). Honest losers recorded in each
+BACKTEST.md, including the cost-arithmetic port failures (pinball, tdi,
+candle_patterns) and the negative-skew liquidity_sweep (54-56% WR, −15%
+to −24% net).
+
+No shared infra changes in this batch.
