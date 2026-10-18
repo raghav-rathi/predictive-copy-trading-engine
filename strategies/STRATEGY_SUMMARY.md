@@ -361,3 +361,46 @@ choppy BTC/ETH. vwma_cross is the cautionary tale: the (10,30) sweep moves
 the "edge" to ETH — when the winner changes coins with the parameter, it was
 never an edge. choppiness is the only system that wins by sitting out:
 +6.2/+6.9 on 70-odd trades, and the honest counterweight is ETH −27.1%.
+
+## Batch 9 (2026-10-18) — named-author classics sweep (Elder, DeMark, Wilder, Williams, Carver, Sperandeo, Hurst, Taylor, Unger, Ehlers, Raschke, ICT)
+
+12 strategies from documented, named-author mechanisms. 1h bars,
+2026-03-14 → 2026-10-18 (BTC/ETH/HYPE ~5,224 bars each). Costs: 0.045%
+taker + 0.01% slippage/side. Sizing: 1% equity risk/trade, 3x leverage
+cap, $10k.
+
+| slug | source | result |
+|---|---|---|
+| td_combo | Tom DeMark TD Combo (9-setup + 13-countdown) | Thin scratch: +$432 combined on 15 trades. Ungradable sample — setups barely fire on 1h |
+| ehlers_cyber_cycle | John Ehlers Cyber Cycle (alpha=0.07, trigger cross) | **Worst churn in library**: −$28,060 combined, 6,833 trades. Killed |
+| raschke_3_10 | Linda Raschke 3/10 oscillator (signal-line cross) | Loser everywhere (−$8,872, 953 trades) |
+| elder_impulse | Alexander Elder Impulse System (EMA13 + MACD hist) | Loser (−$27,044, 3,532 trades); exit-on-flip churns ~1 trade/4.4 bars. Killed |
+| wilder_swing_index | Welles Wilder Swing Index / ASI (20-bar breakout) | Loser (−$7,333 combined) |
+| williams_alligator | Bill Williams Alligator + fractal breakout | Loser (−$6,273 combined) |
+| carver_ewmac | Rob Carver EWMAC forecast (+/−10 bands) | **Batch best**: combined +$807, BTC +8.2% (0.68), ETH +8.7% (0.68), HYPE −8.9%. Mixed/regime-dependent |
+| sperandeo_123 | Victor Sperandeo 1-2-3 trend change | Loser (−$773 combined; BTC −9.5% decisive) |
+| ict_silver_bullet | ICT Silver Bullet (FVG + MSS in NY killzones) | Loser (−$379) on 13 trades in 7 months — conjunction never fires. Ungradable |
+| hurst_fld | J.M. Hurst FLD(20/40/80) cascade | Loser (−$6,032 combined); cascade filter only brakes churn |
+| taylor_3day_cycle | George Douglass Taylor 3-day Book Method | Loser (−$5,973 combined; BTC −40.7%) |
+| unger_opening_breakout | Andrea Unger 3h opening-range breakout | Loser (−$11,759); no session structure in 24/7 crypto. Port failure |
+
+## Empirical direction
+
+The big-name systems port worst. Elder, Ehlers, and Unger are churn
+machines on 1h crypto — ehlers_cyber_cycle's 6,833 trades at 0.11%
+round-trip is a fee-donation system with an indicator attached, and
+elder_impulse's exit-on-any-flip is the same failure in a different
+font. The discretionary classics (Sperandeo 1-2-3, ICT Silver Bullet,
+Taylor cycle) barely fire at this granularity: ict_silver_bullet took
+13 trades in 7 months because four independent conditions never align
+on hourly bars — faithful ports of tape-reading systems need
+lower-timeframe data. Carver's EWMAC is the batch's only live pulse:
++8.2%/+8.7% on BTC/ETH (Sharpe 0.68 each) with the same HYPE failure as
+every other trend system — and the calibration sweep is the lesson
+(keep the shipped 3-rule blend; the better single-rule variant is
+in-sample selection). The HYPE regime story repeats for a fifth batch:
+trend systems print on the parabolic alt and bleed on choppy majors.
+td_combo is the honest curiosity: +$432 on 15 trades says nothing, but
+the mechanism fired almost never — DeMark's setup is a daily-chart
+system, and on 1h it is a museum piece. Per-coin, per-strategy detail
+lives in each strategy's BACKTEST.md / CALIBRATION.md.
