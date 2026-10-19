@@ -404,3 +404,45 @@ td_combo is the honest curiosity: +$432 on 15 trades says nothing, but
 the mechanism fired almost never — DeMark's setup is a daily-chart
 system, and on 1h it is a museum piece. Per-coin, per-strategy detail
 lives in each strategy's BACKTEST.md / CALIBRATION.md.
+
+## Batch 10 (2026-10-19) — indicator/author classics not yet in the library (Williams, Chande, Twiggs, Mulloy, Ehlers, Murrey, Kagi, 3-line-break, fractals, harmonics, Fib)
+
+12 strategies from documented, named mechanisms, all new vs the 114-dir
+main tree (duplicate candidates kst/tsi/vortex/rvi/trix/ultimate_osc/
+force_index/vidya/stoch_rsi/rsi_divergence/klinger/mass_index/camarilla/
+half_trend/linreg_channel were rejected against the remote tree). 1h bars,
+2026-03-14 → 2026-10-19 13:00 UTC (BTC/ETH 5,247 bars, HYPE 5,245). Costs:
+0.045% taker + 0.01% slippage/side. Sizing: 1% equity risk/trade, 3x
+leverage cap, $10k. 139 new unit tests green.
+
+| slug | source | result |
+|---|---|---|
+| williams_ad | Larry Williams A/D (WAD/SMA20 cross, price SMA50 gate) | Loser: −$10,361 combined, 1,133 trades, PF 0.60–0.75. Confirmation arrives after the move |
+| cvd_divergence | CVD (close-location approx) regular divergence | Loser: −$5,076 combined, 763 trades. Re-enters longs on every bar of a decline |
+| chande_forecast_osc | Chande Forecast Oscillator (FO/3-bar signal cross) | **Worst churn in library**: −$18,561 combined, 2,832 trades (~1/5 bars), $15,659 fees |
+| twiggs_money_flow | Twiggs Money Flow (21-period, zero-line cross) | Loser: −$8,478 combined, 1,401 trades; HYPE +$192 only green print |
+| tema_trend | Mulloy TEMA20/50 cross, SMA200 filter | Flat: +$131 combined on 341 trades. HYPE +$2,131 (Sharpe 2.14, PF 1.63), BTC −$1,750 |
+| harmonic_gartley | Gartley XABCD (±6% ratio stack) | Inconclusive: 2 trades in 7 months, −$216. Detector verified on synthetic patterns |
+| laguerre_rsi | Ehlers Laguerre RSI (γ=0.5, 0.2/0.8 reversals) | Loser: −$13,464 combined, 2,069 trades. Per-bar (not cumulative) LRSI per source |
+| fibonacci_pullback | Fib 50–61.8% pocket reclaim, swing-high target | **Batch best**: +$2,723 combined, 274 trades. ETH +$1,375 (0.79), HYPE +$1,830 (1.13), BTC −$482 |
+| fractal_breakout | Bill Williams 5-bar fractals, SMA200 filter | Loser: −$7,952 combined, 945 trades |
+| murray_math | Murrey Math 64-bar octave, extreme-zone reversals | Loser: −$4,329 combined, 532 trades, all three coins |
+| kagi_trend | Kagi 4×ATR reversal, yin/yang transitions | Mixed: +$2,057 combined, 69 trades. BTC +$3,371 (Sharpe 2.70, PF 2.73), ETH/HYPE negative |
+| three_line_break | 3-line-break turnaround entries | No evaluable edge: 10 trades, +$9 combined. Under-trades at 1h |
+
+## Empirical direction
+
+The honest-loser pattern holds for a sixth batch: 8 of 12 lose outright,
+and the two "winners" are coin-regime artifacts — fibonacci_pullback wins
+only on ETH/HYPE while BTC bleeds, kagi_trend's +$2,057 is one BTC run
+(+33.5%, Sharpe 2.70) against two losing coins. chande_forecast_osc
+(-$18,561, 2,832 trades) replaces ehlers_cyber_cycle as the library's
+worst churn machine: a 3-bar signal line on a regression oscillator
+crosses roughly once every five bars on 1h crypto. The two
+never-fire systems (harmonic_gartley: 2 trades; three_line_break: 10)
+are the daily-chart problem in miniature — classical ratio/pattern
+completeness rarely survives hourly granularity. CVD divergence and
+fractal breakouts both lose the same way: re-entering into continuation
+moves. The HYPE regime story repeats: tema_trend prints +21.3% on HYPE
+and −17.5% on BTC. Per-coin, per-strategy detail lives in each
+strategy's BACKTEST.md / CALIBRATION.md.
