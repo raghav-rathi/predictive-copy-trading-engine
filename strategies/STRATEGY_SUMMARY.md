@@ -446,3 +446,51 @@ fractal breakouts both lose the same way: re-entering into continuation
 moves. The HYPE regime story repeats: tema_trend prints +21.3% on HYPE
 and −17.5% on BTC. Per-coin, per-strategy detail lives in each
 strategy's BACKTEST.md / CALIBRATION.md.
+
+## Batch 11 (2026-10-20) — volatility/filter classics + statistical systems + classic patterns (Williams, Waddah Attar, Legoux, Ehlers, Kalman, VPIN, OU, volume profile, Chesler, Ross, O'Neil)
+
+12 strategies from documented, named mechanisms, all new vs the 126-dir
+main tree (checked against the remote tree before building). 1h bars,
+2026-03-14 00:00 UTC → 2026-10-20 13:00 UTC (BTC/ETH ~5,271 bars, HYPE
+~5,269; cache extended a few bars during the build). Costs: 0.045%
+taker + 0.01% slippage/side, funding not modeled. Sizing: 1% equity
+risk/trade, 3x leverage cap, $10k. 159 new unit tests green.
+
+| slug | source | result |
+|---|---|---|
+| vix_fix | Larry Williams VIX Fix (WVF(22), BB(20,2.0), 24-bar max hold) | Loser: −$6,178 combined, 802 trades, PF 0.81. Midline exit books bounces, the 2xATR stop takes the breakdowns |
+| waddah_attar | Waddah Attar Explosion (sens 150, hist above explosion line + dead zone) | Loser: −$5,813 combined, 719 trades, PF 0.67. Entries chase momentum acceleration, buy burst tops |
+| ssl_channel | SSL SMA(10) high/low channel flips | Loser: −$10,083 combined, 1,284 trades, PF 0.80. Fees $7,856. n=20 on HYPE +$2,636 flagged in calibration but not adopted |
+| alma | ALMA 9/21 cross + 20-bar high/low confirmation | **Batch best**: +$2,186 combined, 233 trades. Positive on all 3 coins; ETH near-noise (PF 1.06, $3/trade) |
+| mama_fama | Ehlers MAMA/FAMA Hilbert-adaptive cross | Loser: −$11,909 combined, 1,660 trades, PF 0.69. MAMA hugs price, crosses ~1/9 bars |
+| kalman_trend | Kalman price+velocity filter, cross + slope | **Second-worst in the library**: −$19,946 combined, 3,102 trades, PF 0.59–0.66. Near-zero-lag filter = price with extra steps |
+| vpin | VPIN toxicity exhaustion (90th pct + 20-bar extreme) | Loser: −$3,545 combined, 178 trades, PF 0.65. Experimental read: toxicity predicts volatility, not direction |
+| ou_zscore | OU half-life z-score mean reversion | Loser: −$8,112 combined, 451 trades, PF 0.67. BTC Sharpe −3.3 |
+| volume_profile | Value-area fade (VAL/VAH reclaim, 70% VA) | Loser: −$2,969 combined, 254 trades, PF 0.81. Roughly cost-dragged to zero before fees |
+| hikkake | Chesler Hikkake false-breakout (2004) | Loser: −$4,367 combined, 364 trades, PF 0.72–0.94. 35–38% WR can't clear the 2R breakeven |
+| ross_hook | Joe Ross 1-2-3 + hook continuation | Loser: −$3,921 combined, 327 trades, PF 0.63–0.90. Mechanical pivots fire on too many low-quality setups |
+| cup_handle | O'Neil cup & handle breakout | No evaluable edge: 0 trades. 1h crypto cup depth (median ~20xATR) is mutually exclusive with the spec's 1–4xATR band |
+
+## Empirical direction
+
+The honest-loser streak holds for a seventh batch: 10 of 12 lose, one
+never fires, and the one winner (alma, +$2,186) is the thinnest book of
+the day at 233 trades with ETH contributing a near-noise PF 1.06. The
+batch's real story is the zero-lag trap: kalman_trend (−$19,946, 3,102
+trades) and mama_fama (−$11,909, 1,660) both track price so tightly that
+the filter cross is just a lagged price cross — chop turns them into
+fee-donation systems with indicator branding, and both are robust losers
+by trade count, not noise. The pattern ports repeat the batch-9 lesson:
+hikkake and ross_hook lose on hourly granularity where discretionary
+filters (Chesler's 3-bar confirmation discipline, Ross's own "wait for
+the hook") can't be coded without overfitting, and cup_handle is the
+daily-chart problem in its purest form — the detector is verified on
+synthetic patterns but the real 1h data admits zero candidates. The two
+statistical systems earned their keep in the limitations sections:
+ou_zscore's build exposed that deviations from a trailing SMA are
+mechanically mean-reverting, so the half-life gate admits random walks
+instead of filtering them; vpin's fade is systematically early because
+the academic metric flags toxicity ahead of volatility, not direction.
+ssl_channel's calibration bright spot (n=20, HYPE +$2,636, PF 1.18) is
+flagged for out-of-sample follow-up, not adopted. Per-coin, per-strategy
+detail lives in each strategy's BACKTEST.md / CALIBRATION.md.
