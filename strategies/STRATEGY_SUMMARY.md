@@ -494,3 +494,43 @@ the academic metric flags toxicity ahead of volatility, not direction.
 ssl_channel's calibration bright spot (n=20, HYPE +$2,636, PF 1.18) is
 flagged for out-of-sample follow-up, not adopted. Per-coin, per-strategy
 detail lives in each strategy's BACKTEST.md / CALIBRATION.md.
+
+## Batch 12 (2026-10-21)
+
+12 new strategies shipped, each: indicators + signals + risk config + unit
+tests + backtest on Hyperliquid 1h (BTC/ETH/HYPE, 2026-03-14 → 2026-10-21,
+~5,295 bars/coin). Costs: 0.045% taker + 0.01% slippage/side. Sizing: 1%
+equity risk/trade on the ATR stop, 3x leverage cap, $10k. 142 new unit
+tests green.
+
+| slug | source | result |
+|---|---|---|
+| vortex | Vortex Indicator (Botes & Siepman), VI(14) cross | Loser: −$8,576 combined, 1,676 trades, PF 0.66–0.96. Raw VI cross whipsaws on 1h (~2.5 trades/day); BTC Sharpe −3.85, MaxDD −55.5% |
+| trix | TRIX (Hutson), 14/9, turn-from-extreme filter | +$5,290 combined, 545 trades — **HYPE-carried**: HYPE +$5,573 (Sharpe +2.94, PF 1.50); BTC −$724, ETH +$441 (fees 4x net) |
+| coppock_curve | Coppock Curve (1962), WMA(10) of ROC14+ROC11 | Loser: −$535 combined, 779 trades. Monthly indicator shoehorned onto 1h; HYPE +$3,089 is the only green leg |
+| kst | Know Sure Thing (Pring), 10/15/20/30 + signal 9 | +$1,449 combined, 606 trades — **HYPE-only**: HYPE +$5,582 (Sharpe +2.89); BTC −$2,287, ETH −$1,846 |
+| obv_divergence | Granville OBV + pivot-confirmed divergence | Loser: −$551 combined, 49 trades. k=10 confirmed divergences too rare on 1h to be tradeable |
+| elder_force_index | Force Index (Elder), FI2 timer + FI13 trend gauge | Loser: −$8,224 combined, 1,051 trades, PF 0.67–0.89. FI2 zero-cross pullback churns into chop; BTC MaxDD −44.7% |
+| klinger_osc | Klinger Volume Oscillator (34/55/13) | **Batch worst**: −$13,767 combined, 2,122 trades, PF 0.63–0.86. Cumulative-range `cm` saturates; every swept setting loses on every coin |
+| pretty_good_osc | Pretty Good Oscillator (Mark Johnson), ±3 breakout | Inconclusive: +$282 combined, 201 trades. BTC/ETH dead; the only green is a thin 48-trade HYPE leg (+$1,535) |
+| stoch_rsi | Stochastic RSI (14,14,3,3) | Loser: −$4,505 combined, 891 trades. BTC −$4,524 (Sharpe −3.44); the 20/80 exhaustion trigger whipsaws on 1h |
+| woodies_cci | Woodies CCI zero-line reject (14/6) | Loser: −$1,385 combined, 233 trades, WR 23.6%. Gross of fees +$481; $1,867 of fees makes it a steady loser |
+| elder_triple_screen | Elder Triple Screen (6h MACD + FI2 pullback) | Loser: −$6,702 combined, 548 trades. 6h trend screen arrives too late on 1h; verified 89.7% WR on synthetic uptrend, so the signal is anti-predictive here, not buggy |
+| lbr_holy_grail | Holy Grail (Raschke), ADX>30 + 20EMA pullback | No evidence: −$137 combined, 15 trades in 7 months. ADX(14)>30+rising is rare on 1h; the daily setup doesn't transfer |
+
+## Empirical direction
+
+The honest-loser streak holds for an eighth batch: 8 of 12 print red
+combined, the 2 green ones (trix, kst) are HYPE-only regime luck with
+BTC/ETH firmly red, pretty_good_osc is a noise-level +$282, and
+lbr_holy_grail barely trades. The batch's through-line is trigger
+churn: volume-acceleration pullbacks (elder_force_index, klinger_osc,
+stoch_rsi) fire 2,000–1,000 trades and donate to fees; the raw VI
+cross (vortex) repeats the batch-11 zero-lag lesson at 1,676 trades.
+Indicators designed for slower clocks fail at 1h the same way:
+coppock's monthly construction, the triple screen's 6h MACD tide,
+woodies' 6-bar persistence, and Raschke's daily ADX gate all arrive
+late or never fire. The pullback-to-structure family (holy grail,
+obv_divergence) suffers the opposite disease — patterns too rare to
+trade. Nothing here is anywhere near a live gate. Per-coin detail
+lives in each strategy's BACKTEST.md / CALIBRATION.md.
