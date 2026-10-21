@@ -6,14 +6,16 @@ from strategies.registry import register
 
 SPEC = register(
     StrategySpec(
-        name="Coppock Curve zero-cross system",
+        name="Coppock Curve",
         slug="coppock_curve",
         description=(
-            "Coppock = WMA(10) of ROC(14)+ROC(11); long when it crosses "
-            "above zero from below, short on the mirror cross below zero; "
-            "exit on the opposite cross."
+            "Coppock curve (ROC(14)+ROC(11) smoothed with a 10-bar "
+            "linear WMA): long when the curve crosses above zero, "
+            "short when it crosses below; exits on the opposite "
+            "cross; 2xATR stop, 3xATR chandelier trail, 200-bar max "
+            "hold."
         ),
-        source_name="E.S. Coppock — Coppock Curve (Barron's, 1962)",
+        source_name="Coppock Curve (E.S.C. Coppock, 1962)",
         source_url="https://en.wikipedia.org/wiki/Coppock_curve",
         warmup_bars=risk.WARMUP,
         add_indicators=indicators.add_indicators,
