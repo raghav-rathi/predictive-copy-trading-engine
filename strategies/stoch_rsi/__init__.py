@@ -1,4 +1,4 @@
-"""StochRSI engine: registration + re-exports."""
+"""Stochastic RSI engine: registration + re-exports."""
 
 from strategies.stoch_rsi import indicators, risk, signals
 from strategies.base import StrategySpec
@@ -6,15 +6,17 @@ from strategies.registry import register
 
 SPEC = register(
     StrategySpec(
-        name="StochRSI (Chande & Kroll, 1994)",
+        name="Stochastic RSI",
         slug="stoch_rsi",
         description=(
-            "RSI(14) stochastics over 14 bars, %K(3)/%D(3): long on %K crossing "
-            "above %D below 20, short on %K crossing below %D above 80, exit on "
-            "opposite cross."
+            "Chande & Kroll Stochastic RSI: %K = SMA(3) of 100*(RSI(14) "
+            "- min(RSI,14))/(max(RSI,14) - min(RSI,14)); long when %K "
+            "crosses above 20 (leaves oversold), short when %K crosses "
+            "below 80 (leaves overbought), exits on the 50-midline "
+            "cross; 2xATR stop, 3xATR chandelier trail, 60-bar max hold."
         ),
-        source_name="StochRSI (Tushar Chande & Stanley Kroll, 1994) — Investopedia",
-        source_url="https://www.investopedia.com/terms/s/stochrsi.asp",
+        source_name="Stochastic RSI (Chande & Kroll)",
+        source_url="https://blockspot.io/what-is-stochastic-rsi/",
         warmup_bars=risk.WARMUP,
         add_indicators=indicators.add_indicators,
         add_signals=signals.add_signals,
