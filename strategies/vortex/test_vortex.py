@@ -1,131 +1,142 @@
-"""Network-free unit tests for the Vortex strategy."""
+"""Vortex Indicator crossover tests. Network-free, synthetic data only."""
 
+import os
+import sys
 import unittest
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
 import numpy as np
 import pandas as pd
 
-from strategies import base as B
 from strategies.vortex import indicators, risk, signals
-from strategies.vortex.indicators import VI_PERIOD
+from strategies import base as B
 
 
-def _trend_df(n: int = 60, direction: int = 1, start: float = 100.0) -> pd.DataFrame:
-    """Deterministic staircase candles; direction=1 rising, -1 falling."""
-    c = start + direction * np.arange(n, dtype=float)
-    o = c - 0.2 * direction
-    h = np.maximum(o, c) + 0.3
-    l = np.minimum(o, c) - 0.3
-    return pd.DataFrame(
-        {
-            "t": np.arange(n, dtype=np.int64) * 3600_000,
-            "o": o,
-            "h": h,
-            "l": l,
-            "c": c,
-            "v": np.full(n, 100.0),
-        }
-    )
+def _frame(n=400, seed=7, drift=0.001, vol=0.01):
+    rng = np.random.default_rng(seed)
+    rets = rng.normal(drift, vol, n)
+    c = 100 * np.exp(np.cumsum(rets))
+    o = np.concatenate([[100.0], c[:-1]])
+    h = np.maximum(o, c) * (1 + rng.uniform(0, 0.004, n))
+    l = np.minimum(o, c) * (1 - rng.uniform(0, 0.004, n))
+    v = rng.uniform(50, 150, n)
+    t = (1_700_000_000_000 + np.arange(n) * 3_600_000).astype("int64")
+    return pd.DataFrame({"t": t, "o": o, "h": h, "l": l, "c": c, "v": v})
 
 
-class TestVortexIndicators(unittest.TestCase):
-    def test_columns_and_warmup(self):
-        df = indicators.add_indicators(_trend_df())
-        for col in ("vi_plus", "vi_minus", "vi_plus_prev", "vi_minus_prev", "adx"):
-            self.assertIn(col, df.columns)
-        self.assertTrue(df["vi_plus"].iloc[: VI_PERIOD - 1].isna().all())
-        self.assertFalse(df["vi_plus"].iloc[VI_PERIOD:].isna().any())
+def _trend_frame(n=600, seed=11):
+    """Up-trend then down-trend: crosses should fire in both legs."""
+    rng = np.random.default_rng(seed)
+    up = np.linspace(100, 160, n // 2) + rng.normal(0, 1.0, n // 2)
+    dn = np.linspace(160, 90, n - n // 2) + rng.normal(0, 1.0, n - n // 2)
+    c = np.concatenate([up, dn])
+    o = np.concatenate([[c[0]], c[:-1]])
+    h = np.maximum(o, c) * (1 + rng.uniform(0, 0.003, n))
+    l = np.minimum(o, c) * (1 - rng.uniform(0, 0.003, n))
+    v = rng.uniform(50, 150, n)
+    t = (1_700_000_000_000 + np.arange(n) * 3_600_000).astype("int64")
+    return pd.DataFrame({"t": t, "o": o, "h": h, "l": l, "c": c, "v": v})
 
-    def test_rising_market_vi_plus_dominates(self):
-        df = indicators.add_indicators(_trend_df(80, direction=1))
-        tail = df.iloc[VI_PERIOD + 5 :]
-        self.assertTrue((tail["vi_plus"] > tail["vi_minus"]).all())
 
-    def test_falling_market_vi_minus_dominates(self):
-        df = indicators.add_indicators(_trend_df(80, direction=-1))
-        tail = df.iloc[VI_PERIOD + 5 :]
-        self.assertTrue((tail["vi_minus"] > tail["vi_plus"]).all())
+class TestIndicators(unittest.TestCase):
+    def setUp(self):
+        self.df = _frame()
+        self.ind = indicators.add_indicators(self.df)
+
+    def test_columns_present(self):
+        for col in ("vi_pos", "vi_neg", "vi_spread", "atr"):
+            self.assertIn(col, self.ind.columns)
+
+    def test_vi_nonnegative(self):
+        v = self.ind.dropna(subset=["vi_pos", "vi_neg"])
+        self.assertTrue((v["vi_pos"] >= 0).all())
+        self.assertTrue((v["vi_neg"] >= 0).all())
+
+    def test_vi_reasonable_upper_bound(self):
+        # VM sums are bounded by TR sums except on gap/overlap bars; values
+        # stay modest on a smooth random walk.
+        v = self.ind["vi_pos"].dropna()
+        self.assertLess(v.max(), 3.0)
+
+    def test_vi_warmup_nans(self):
+        n = 14
+        # TR is NaN at bar 0, so the first n bars have no complete window.
+        self.assertEqual(self.ind["vi_pos"].iloc[:n].isna().sum(), n)
+        self.assertFalse(self.ind["vi_pos"].iloc[n:].isna().any())
+
+    def test_vi_spread_consistency(self):
+        v = self.ind.dropna(subset=["vi_pos", "vi_neg"])
+        self.assertTrue(
+            np.allclose(v["vi_spread"], v["vi_pos"] - v["vi_neg"], atol=1e-9)
+        )
+
+    def test_does_not_mutate_input(self):
+        before = self.df.copy()
+        indicators.add_indicators(self.df)
+        pd.testing.assert_frame_equal(self.df, before)
+
+    def test_flat_bars_no_crash(self):
+        df = _frame()
+        df.loc[:, ["o", "h", "l", "c"]] = 100.0
+        out = indicators.add_indicators(df)
+        self.assertEqual(len(out), len(df))
+
+
+class TestSignals(unittest.TestCase):
+    def test_columns_boolean_no_nan(self):
+        sig = signals.add_signals(indicators.add_indicators(_frame()))
+        for col in ("long_entry", "short_entry", "long_exit", "short_exit"):
+            self.assertIn(col, sig.columns)
+            self.assertTrue(sig[col].dtype == bool, col)
+            self.assertFalse(sig[col].isna().any(), col)
+
+    def test_entries_are_crosses(self):
+        ind = indicators.add_indicators(_trend_frame())
+        sig = signals.add_signals(ind)
+        pos, neg = ind["vi_pos"], ind["vi_neg"]
+        exp_long = (B.crossed_above(pos, neg)).fillna(False).astype(bool)
+        exp_short = (B.crossed_below(pos, neg)).fillna(False).astype(bool)
+        pd.testing.assert_series_equal(sig["long_entry"], exp_long, check_names=False)
+        pd.testing.assert_series_equal(sig["short_entry"], exp_short, check_names=False)
+
+    def test_exits_mirror_entries(self):
+        sig = signals.add_signals(indicators.add_indicators(_trend_frame()))
+        pd.testing.assert_series_equal(sig["long_exit"], sig["short_entry"], check_names=False)
+        pd.testing.assert_series_equal(sig["short_exit"], sig["long_entry"], check_names=False)
+
+    def test_crosses_fire_on_trending_frame(self):
+        sig = signals.add_signals(indicators.add_indicators(_trend_frame()))
+        self.assertGreater(sig["long_entry"].sum(), 0)
+        self.assertGreater(sig["short_entry"].sum(), 0)
 
     def test_no_lookahead(self):
-        df = _trend_df(80)
-        full = indicators.add_indicators(df)
-        trunc = indicators.add_indicators(df.iloc[:-1])
-        for col in ("vi_plus", "vi_minus", "adx"):
-            pd.testing.assert_series_equal(
-                full[col].iloc[:-1], trunc[col], check_names=False
-            )
+        # A signal on the full frame must equal the signal computed on the
+        # truncated frame at the same bar index.
+        full = signals.add_signals(indicators.add_indicators(_trend_frame()))
+        j = 300
+        trunc = signals.add_signals(indicators.add_indicators(_trend_frame().iloc[: j + 1]))
+        for col in ("long_entry", "short_entry"):
+            self.assertEqual(bool(full[col].iloc[j]), bool(trunc[col].iloc[j]))
 
 
-class TestVortexSignals(unittest.TestCase):
-    def _frame(self, vi_p, vi_m, adx):
-        n = len(vi_p)
-        return pd.DataFrame(
-            {
-                "vi_plus": vi_p,
-                "vi_minus": vi_m,
-                "vi_plus_prev": np.r_[np.nan, vi_p[:-1]],
-                "vi_minus_prev": np.r_[np.nan, vi_m[:-1]],
-                "adx": adx,
-            }
-        )
-
-    def test_cross_up_triggers_long(self):
-        df = signals.add_signals(
-            self._frame(
-                [0.8, 0.9, 1.1, 1.2], [1.2, 1.1, 0.9, 0.8], [25, 26, 27, 28]
-            )
-        )
-        self.assertTrue(df["long_entry"].iloc[2])
-        self.assertFalse(df["long_entry"].iloc[:2].any())
-        self.assertFalse(df["short_entry"].any())
-
-    def test_cross_down_triggers_short_and_exits_long(self):
-        df = signals.add_signals(
-            self._frame(
-                [1.2, 1.1, 0.9, 0.8], [0.8, 0.9, 1.1, 1.2], [25, 26, 27, 28]
-            )
-        )
-        self.assertTrue(df["short_entry"].iloc[2])
-        self.assertTrue(df["long_exit"].iloc[2])
-
-    def test_adx_filter_blocks_weak_trend(self):
-        frame = self._frame(
-            [0.8, 0.9, 1.1, 1.2], [1.2, 1.1, 0.9, 0.8], [15, 16, 17, 18]
-        )
-        gated = signals.add_signals(frame, adx_filter=True)
-        ungated = signals.add_signals(frame, adx_filter=False)
-        self.assertFalse(gated["long_entry"].any())
-        self.assertTrue(ungated["long_entry"].iloc[2])
-        # exits still fire regardless of the filter
-        self.assertTrue(gated["short_exit"].iloc[2])
-
-    def test_no_cross_no_signal(self):
-        df = signals.add_signals(
-            self._frame(
-                [1.1, 1.1, 1.1, 1.1], [0.9, 0.9, 0.9, 0.9], [25, 26, 27, 28]
-            )
-        )
-        self.assertFalse(
-            df[["long_entry", "short_entry", "long_exit", "short_exit"]].any().any()
-        )
-
-    def test_boolean_columns(self):
-        df = signals.add_signals(_trend_df(40).pipe(indicators.add_indicators))
-        for col in ("long_entry", "short_entry", "long_exit", "short_exit"):
-            self.assertTrue(df[col].dtype == bool, col)
-
-
-class TestVortexRisk(unittest.TestCase):
-    def test_risk_sanity(self):
-        self.assertEqual(risk.RISK.stop_atr_mult, 2.5)
-        self.assertIsNone(risk.RISK.trail_atr_mult)
-        self.assertTrue(risk.RISK.allow_longs and risk.RISK.allow_shorts)
+class TestRiskAndRegistration(unittest.TestCase):
+    def test_risk_config_values(self):
+        self.assertEqual(risk.RISK.stop_atr_mult, 2.0)
+        self.assertEqual(risk.RISK.trail_atr_mult, 3.0)
+        self.assertIsNone(risk.RISK.target_atr_mult)
+        self.assertEqual(risk.RISK.max_hold_bars, 120)
         self.assertEqual(risk.WARMUP, 60)
 
-    def test_base_primitives(self):
-        df = _trend_df(40)
-        a = B.atr(df["h"], df["l"], df["c"], 14)
-        self.assertTrue((a.dropna() > 0).all())
+    def test_registration(self):
+        import strategies.vortex as mod
+        from strategies.registry import REGISTRY
+
+        self.assertIn("vortex", REGISTRY)
+        self.assertIs(REGISTRY["vortex"], mod.SPEC)
+        self.assertEqual(mod.SPEC.slug, "vortex")
+        self.assertEqual(mod.SPEC.warmup_bars, risk.WARMUP)
+        self.assertEqual(set(mod.__all__), {"indicators", "signals", "risk", "SPEC"})
 
 
 if __name__ == "__main__":
