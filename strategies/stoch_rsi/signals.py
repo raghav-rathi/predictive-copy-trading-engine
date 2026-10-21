@@ -1,34 +1,52 @@
-"""StochRSI signals: %K/%D crosses in the oversold/overbought zones.
+"""Stochastic RSI cross signals.
 
-long_entry  = %K crosses above %D while BOTH are below OS (20)
-short_entry = %K crosses below %D while BOTH are above OB (80)
-long_exit   = %K crosses below %D (opposite momentum turn, any zone)
-short_exit  = %K crosses above %D
+Classic Chande & Kroll usage: the %K line is the trigger, and the
+20/80 levels mark oversold/overbought zones (50 is the midline).
 
-The zone gate on entries is the classic Chande/Kroll usage: only take the
-cross when the oscillator is at an extreme. Exits use the raw cross so a
-winning trade is not held through the full momentum reversal. Execution is
-next-bar-open per the harness contract.
+Long entry:  %K crosses ABOVE 20 — momentum leaves the oversold zone,
+             i.e. downside exhaustion, rather than buying into the
+             depths of a dump.
+Short entry: %K crosses BELOW 80 — momentum leaves the overbought
+             zone (upside exhaustion).
+
+Long exit:  %K crosses below 50 — the midline cross says the bounce
+            leg is done; take the mean-reversion profit before %K
+            dives back toward oversold.
+Short exit: %K crosses above 50 (mirror).
+
+Entries deliberately ignore the %D line: %K alone is the faster
+trigger and %D adds lag without materially changing which level
+crosses fire. Signal columns are boolean, no NaN, no lookahead
+(execution at next-bar open is handled by the harness).
 """
 
 import pandas as pd
 
-from strategies import base as B
+from strategies.base import crossed_above, crossed_below
 
-OS = 20.0
-OB = 80.0
+OVERSOLD = 20
+OVERBOUGHT = 80
+MIDLINE = 50
+
+
+def _level(df: pd.DataFrame, value: float) -> pd.Series:
+    return pd.Series(float(value), index=df.index)
 
 
 def add_signals(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
-    k = df["stochrsi_k"]
-    d = df["stochrsi_d"]
-    cross_up = B.crossed_above(k, d)
-    cross_dn = B.crossed_below(k, d)
-    df["long_entry"] = cross_up & (k < OS) & (d < OS)
-    df["short_entry"] = cross_dn & (k > OB) & (d > OB)
-    df["long_exit"] = cross_dn
-    df["short_exit"] = cross_up
-    for col in ("long_entry", "short_entry", "long_exit", "short_exit"):
-        df[col] = df[col].fillna(False).astype(bool)
+    k = df["stoch_k"]
+    lv20 = _level(df, OVERSOLD)
+    lv80 = _level(df, OVERBOUGHT)
+    lv50 = _level(df, MIDLINE)
+
+    long_entry = crossed_above(k, lv20).fillna(False)
+    short_entry = crossed_below(k, lv80).fillna(False)
+    long_exit = crossed_below(k, lv50).fillna(False)
+    short_exit = crossed_above(k, lv50).fillna(False)
+
+    df["long_entry"] = long_entry.astype(bool)
+    df["short_entry"] = short_entry.astype(bool)
+    df["long_exit"] = long_exit.astype(bool)
+    df["short_exit"] = short_exit.astype(bool)
     return df

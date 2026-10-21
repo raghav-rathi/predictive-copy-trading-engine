@@ -1,33 +1,63 @@
-"""Martin Pring's Know Sure Thing (KST) indicators.
+"""Know Sure Thing (KST) indicators (Martin Pring).
 
-KST = 1*RCMA(ROC10) + 2*RCMA(ROC15) + 3*RCMA(ROC20) + 4*RCMA(ROC30),
-where RCMA is the 10-bar SMA of each rate-of-change (15-bar SMA for the
-ROC30 leg) and ROCn = 100*(close - close[n])/close[n]. The weighted sum
-of four smoothed momentum rates makes KST a broad momentum oscillator;
-the 9-bar SMA signal line times entries. All causal: only data through
-bar i's close.
+KST = 1*SMA(ROC(10),10) + 2*SMA(ROC(15),10) + 3*SMA(ROC(20),10)
+      + 4*SMA(ROC(30),15),
+where ROC(n) = 100 * (close / close.shift(n) - 1) and the SMA is a
+plain 10- or 15-bar simple moving average of the raw ROC series
+(Pring's original uses SMA on each ROC; some variants use WMA — the
+SMA form is shipped).
+
+signal = SMA(KST, 9): the standard trigger line.
+
+Columns:
+    roc10, roc15, roc20, roc30 -- raw rates of change (percent)
+    rcma1..rcma4 -- SMA(ROC(n), n_smooth) for the four timeframes
+    kst    -- weighted sum, weights 1/2/3/4 (the longest timeframe
+              dominates)
+    kst_signal -- SMA(kst, 9)
+    atr    -- Wilder ATR(14) for sizing (consumed by the harness)
+
+No lookahead: the value on bar j uses closes through bar j only.
 """
 
+import numpy as np
 import pandas as pd
 
 from strategies import base as B
 
-ROC_PERIODS = (10, 15, 20, 30)
-RCMA_PERIODS = (10, 10, 10, 15)
+ROC_NS = (10, 15, 20, 30)
+SMOOTH_NS = (10, 10, 10, 15)
 WEIGHTS = (1, 2, 3, 4)
-SIGNAL = 9  # classic signal-line period
+SIGNAL_N = 9
 
 
-def _roc(c: pd.Series, n: int) -> pd.Series:
-    return 100.0 * (c - c.shift(n)) / c.shift(n).replace(0, float("nan"))
+def roc(close: pd.Series, n: int) -> pd.Series:
+    """Rate of change in percent: 100 * (c / c.shift(n) - 1)."""
+    prev = close.shift(n)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        out = 100.0 * (close / prev.replace(0.0, np.nan) - 1.0)
+    return out
 
 
-def add_indicators(df: pd.DataFrame) -> pd.DataFrame:
+def kst(close: pd.Series, signal_n: int = SIGNAL_N) -> pd.DataFrame:
+    """KST + signal line, standard (10,15,20,30)/(10,10,10,15) weights 1-4."""
+    c = pd.Series(close.to_numpy(dtype=float), index=close.index)
+    parts = []
+    for n, m, w in zip(ROC_NS, SMOOTH_NS, WEIGHTS):
+        r = roc(c, n)
+        s = r.rolling(m, min_periods=m).mean()
+        parts.append(w * s)
+    out = pd.DataFrame(index=close.index)
+    out["kst"] = sum(parts)
+    out["kst_signal"] = out["kst"].rolling(signal_n, min_periods=signal_n).mean()
+    return out
+
+
+def add_indicators(df: pd.DataFrame, signal_n: int = SIGNAL_N) -> pd.DataFrame:
     df = df.copy()
     c = df["c"]
-    kst = 0.0
-    for n, m, w in zip(ROC_PERIODS, RCMA_PERIODS, WEIGHTS):
-        kst = kst + w * B.sma(_roc(c, n), m)
-    df["kst"] = kst
-    df["kst_signal"] = B.sma(kst, SIGNAL)
+    out = kst(c, signal_n)
+    df["kst"] = out["kst"]
+    df["kst_signal"] = out["kst_signal"]
+    df["atr"] = B.atr(df["h"], df["l"], df["c"], 14)
     return df

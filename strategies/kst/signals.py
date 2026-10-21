@@ -1,26 +1,35 @@
-"""KST signals (Pring's signal-line cross).
+"""Know Sure Thing (KST) signal-line cross signals.
 
-long_entry  = KST crosses above its 9-bar signal line
-short_entry = KST crosses below its 9-bar signal line
-long_exit   = KST crosses back below its signal line
-short_exit  = KST crosses back above its signal line
-Execution next-bar-open per the harness contract.
+Pring's canonical trigger is the KST crossing its 9-bar signal line.
+To keep entries aligned with momentum (not chasing late extensions),
+entries are gated on the KST's sign:
+    long_entry  = crossed_above(kst, kst_signal) & (kst < 0)
+    short_entry = crossed_below(kst, kst_signal) & (kst > 0)
+i.e. buy a bullish cross only while KST is still below zero (early in
+the turn), sell a bearish cross only while KST is still above zero.
+Exits are the opposite cross (ungated): long exits on
+crossed_below, short on crossed_above.
+
+Signal columns are boolean, no NaN, no lookahead (execution at
+next-bar open is handled by the harness).
 """
 
 import pandas as pd
 
-from strategies import base as B
+from strategies.base import crossed_above, crossed_below
 
 
 def add_signals(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
-    kst, sig = df["kst"], df["kst_signal"]
-    long_x = B.crossed_above(kst, sig)
-    short_x = B.crossed_below(kst, sig)
-    df["long_entry"] = long_x
-    df["short_entry"] = short_x
-    df["long_exit"] = short_x
-    df["short_exit"] = long_x
-    for col in ("long_entry", "short_entry", "long_exit", "short_exit"):
-        df[col] = df[col].fillna(False).astype(bool)
+    k = df["kst"]
+    s = df["kst_signal"]
+    cross_up = crossed_above(k, s).fillna(False)
+    cross_dn = crossed_below(k, s).fillna(False)
+    neg = (k < 0).fillna(False)
+    pos = (k > 0).fillna(False)
+
+    df["long_entry"] = (cross_up & neg).astype(bool)
+    df["short_entry"] = (cross_dn & pos).astype(bool)
+    df["long_exit"] = cross_dn.astype(bool)
+    df["short_exit"] = cross_up.astype(bool)
     return df

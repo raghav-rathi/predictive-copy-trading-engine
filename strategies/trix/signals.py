@@ -1,27 +1,34 @@
-"""TRIX momentum signals.
+"""TRIX turn-up-from-negative / turn-down-from-positive signals.
 
-long_entry  = TRIX crosses above its 9-bar signal line while below zero
-              (momentum turning up from oversold)
-short_entry = TRIX crosses below its 9-bar signal line while above zero
-long_exit   = TRIX crosses back below its signal line
-short_exit  = TRIX crosses back above its signal line
-Execution next-bar-open per the harness contract.
+Classic TRIX trading rule (Hutson): buy when the TRIX line crosses
+above its signal line *while still below zero* — momentum turns up
+from washed-out territory, not from an already-overbought read. Short
+when TRIX crosses below its signal while still above zero.
+
+    long_entry  = crossed_above(trix, trix_signal) & (trix < 0)
+    short_entry = crossed_below(trix, trix_signal) & (trix > 0)
+
+Exits are the opposite cross regardless of territory: once a position
+is open, a cross the other way means the momentum turn failed, so get
+out even if TRIX never reached zero.
+
+Signal columns are boolean, no NaN, no lookahead (the harness executes
+at the next bar's open).
 """
 
 import pandas as pd
 
-from strategies import base as B
+from strategies.base import crossed_above, crossed_below
 
 
 def add_signals(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
-    trix, sig = df["trix"], df["trix_signal"]
-    long_x = B.crossed_above(trix, sig)
-    short_x = B.crossed_below(trix, sig)
-    df["long_entry"] = long_x & (trix < 0)
-    df["short_entry"] = short_x & (trix > 0)
-    df["long_exit"] = short_x
-    df["short_exit"] = long_x
-    for col in ("long_entry", "short_entry", "long_exit", "short_exit"):
-        df[col] = df[col].fillna(False).astype(bool)
+    tx = df["trix"]
+    sg = df["trix_signal"]
+    cross_up = crossed_above(tx, sg).fillna(False)
+    cross_dn = crossed_below(tx, sg).fillna(False)
+    df["long_entry"] = (cross_up & (tx < 0)).fillna(False).astype(bool)
+    df["short_entry"] = (cross_dn & (tx > 0)).fillna(False).astype(bool)
+    df["long_exit"] = cross_dn.astype(bool)
+    df["short_exit"] = cross_up.astype(bool)
     return df

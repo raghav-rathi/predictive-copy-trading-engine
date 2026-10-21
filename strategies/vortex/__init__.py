@@ -1,4 +1,4 @@
-"""Vortex engine: registration + re-exports."""
+"""Vortex Indicator crossover engine: registration + re-exports."""
 
 from strategies.vortex import indicators, risk, signals
 from strategies.base import StrategySpec
@@ -6,14 +6,17 @@ from strategies.registry import register
 
 SPEC = register(
     StrategySpec(
-        name="Vortex (ADX-confirmed)",
+        name="Vortex Indicator Crossover",
         slug="vortex",
         description=(
-            "Vortex indicator VI+/VI- crosses (Botes & Siepman, S&C Jan 2010) "
-            "for entries/exits, gated by ADX(14) > 20; 2.5xATR hard stop."
+            "Vortex Indicator (Botes & Siepman): VM+ = |h - l.shift(1)|, "
+            "VM- = |l - h.shift(1)|, VI+(14) = sum14(VM+)/sum14(TR); long "
+            "when VI+ crosses above VI-, short on a cross below, exits on "
+            "the opposite cross; 2xATR stop, 3xATR chandelier trail, "
+            "120-bar max hold."
         ),
-        source_name="Botes & Siepman, 'The Vortex Indicator', S&C Jan 2010",
-        source_url="https://www.Markets.com/pt/education-centre/vortex-indicator/",
+        source_name="Vortex Indicator (Botes & Siepman)",
+        source_url="https://www.investopedia.com/terms/v/vortex-indicator-vi.asp",
         warmup_bars=risk.WARMUP,
         add_indicators=indicators.add_indicators,
         add_signals=signals.add_signals,

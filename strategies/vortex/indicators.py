@@ -1,30 +1,54 @@
-"""Vortex indicator (Etienne Botes & Douglas Siepman, S&C Jan 2010).
+"""Vortex Indicator (VI) -- Botes & Siepman, TASC Jan 2010.
 
-VM+ = |high - prior low|; VM- = |low - prior high|
-VI+ = sum(VM+, n) / sum(TR, n); VI- = sum(VM-, n) / sum(TR, n)
+Positive/negative vortex movement over a lookback n (default 14):
 
-Pure pandas/numpy; no lookahead (all rolling sums use data through bar i).
+    VM+  = |h - l.shift(1)|          (upward movement)
+    VM-  = |l - h.shift(1)|          (downward movement)
+    VI+  = sum_n(VM+) / sum_n(TR)    (VI- likewise)
+    TR   = base.true_range(h, l, c)
+
+VI+ above VI- = buying pressure dominates the window; a VI+ crossing
+above VI- is the long trigger in the original paper, and vice versa.
+Columns:
+
+    vi_pos   -- VI+(n)
+    vi_neg   -- VI-(n)
+    vi_spread -- vi_pos - vi_neg (signed pressure)
+    atr      -- Wilder ATR(14) for the risk layer
+
+No lookahead: every rolling sum on bar j uses bars through j only;
+min_periods=n so the first n-1 bars are NaN (never partially formed).
+Division guards against a zero TR sum (flat synthetic bars) with a
+masked NaN.
 """
 
+import numpy as np
 import pandas as pd
 
 from strategies import base as B
 
-VI_PERIOD = 14
-ADX_PERIOD = 14
-ADX_THRESHOLD = 20.0
+VORTEX_N = 14  # shipped default
 
 
-def add_indicators(df: pd.DataFrame, vi_n: int = VI_PERIOD) -> pd.DataFrame:
+def vortex(h: pd.Series, l: pd.Series, c: pd.Series, n: int = VORTEX_N) -> pd.DataFrame:
+    """Return vi_pos / vi_neg for the Vortex Indicator with window n."""
+    vm_pos = (h - l.shift(1)).abs()
+    vm_neg = (l - h.shift(1)).abs()
+    tr = B.true_range(h, l, c)
+    sum_pos = vm_pos.rolling(n, min_periods=n).sum()
+    sum_neg = vm_neg.rolling(n, min_periods=n).sum()
+    sum_tr = tr.rolling(n, min_periods=n).sum()
+    safe = sum_tr.replace(0.0, np.nan)
+    vi_pos = sum_pos / safe
+    vi_neg = sum_neg / safe
+    return pd.DataFrame({"vi_pos": vi_pos, "vi_neg": vi_neg})
+
+
+def add_indicators(df: pd.DataFrame, n: int = VORTEX_N) -> pd.DataFrame:
     df = df.copy()
-    vm_plus = (df["h"] - df["l"].shift(1)).abs()
-    vm_minus = (df["l"] - df["h"].shift(1)).abs()
-    tr = B.true_range(df["h"], df["l"], df["c"])
-    tr_sum = tr.rolling(vi_n, min_periods=vi_n).sum()
-    df["vi_plus"] = vm_plus.rolling(vi_n, min_periods=vi_n).sum() / tr_sum
-    df["vi_minus"] = vm_minus.rolling(vi_n, min_periods=vi_n).sum() / tr_sum
-    df["vi_plus_prev"] = df["vi_plus"].shift(1)
-    df["vi_minus_prev"] = df["vi_minus"].shift(1)
-    adx_df = B.adx(df["h"], df["l"], df["c"], ADX_PERIOD)
-    df["adx"] = adx_df["adx"]
+    v = vortex(df["h"], df["l"], df["c"], n)
+    df["vi_pos"] = v["vi_pos"]
+    df["vi_neg"] = v["vi_neg"]
+    df["vi_spread"] = v["vi_pos"] - v["vi_neg"]
+    df["atr"] = B.atr(df["h"], df["l"], df["c"], 14)
     return df
