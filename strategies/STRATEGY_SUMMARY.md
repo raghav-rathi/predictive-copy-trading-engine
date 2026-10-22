@@ -534,3 +534,39 @@ late or never fire. The pullback-to-structure family (holy grail,
 obv_divergence) suffers the opposite disease — patterns too rare to
 trade. Nothing here is anywhere near a live gate. Per-coin detail
 lives in each strategy's BACKTEST.md / CALIBRATION.md.
+
+## Batch 13 (2026-10-22)
+
+12 new strategies shipped, each: indicators + signals + risk config + unit
+tests + backtest on Hyperliquid 1h (BTC/ETH/HYPE, 2026-03-14 -> 2026-10-21,
+~5,300 bars/coin). Costs: 0.045% taker + 0.01% slippage/side. Sizing: 1%
+equity risk/trade on the ATR stop, 3x leverage cap, $10k. 212 new unit
+tests green.
+
+| slug | source | result |
+|---|---|---|
+| detrended_price_oscillator | DPO(20) zero-line cross + SMA50 trend filter | Loser: -$4,738 combined, 757 trades, WR 24.2%. The 11-bar displacement makes entries structurally late: buys cycle tops, sells cycle bottoms |
+| ulcer_index | Ulcer Index(14) long-only regime gate + Donchian-20 breakout | Inconclusive: +$1,598 combined, 335 trades - but fee-bound noise (ETH/HYPE nets ~= their fees) and Martin's 5/10 UI thresholds are out of scale for 1h bars (UI lives in 0-4); effectively a Donchian long-only wearing an Ulcer Index costume |
+| chaikin_volatility | Chaikin Volatility(10/10) threshold cross + SMA50 filter | Loser: -$9,944 combined, 973 trades. Trades *into* volatility expansion - the wrong side of Chaikin's own observation: spikes mark climactic participation |
+| dema_trend | DEMA(21/55) cross (Mulloy) | Loser: -$632 combined, 514 trades, PF 0.85-1.06. Mulloy's lag reduction reacts to moves that don't persist; all swept settings lose |
+| ehlers_supersmoother | SuperSmoother(20) slope-gated price cross | Loser: -$7,047 combined, 914 trades, WR 26.3%. Slope gate halves the loss vs raw crosses, but entries still arrive when legs are spent |
+| ehlers_decycler | Decycler(20) price cross | Loser: -$15,448 combined, 1,900 trades, WR 26.2%. Zero-lag is the flaw: price crosses the lag-free trend line constantly; every swept cutoff loses |
+| ehlers_reflex | Reflex(20) zero-cross | Inconclusive: -$982 combined, 607 trades, PF 0.96. BTC -$2,290, ETH/HYPE near-noise; the naked zero-cross needs a chop filter |
+| oops_pattern | Larry Williams Oops, 24-bar session | +$3,176 combined, 526 trades - **HYPE-only**: HYPE +$6,652 (Sharpe +2.80, PF 1.48); BTC -$3,501, ETH +$25. Fading breakdowns only works where they snap back |
+| turtle_classic | Original Turtle S1(20/10)+S2(55/20) with skip rule | Breakeven noise: +$332 combined, 254 trades, PF 1.02. The skip rule self-extinguishes on 1h (>90% of entries are S2 failsafe); BTC an outright loser |
+| accelerator_oscillator | Bill Williams AC(5/34/5), 2/3-bar color rule | **Batch worst**: -$25,444 combined, 3,113 trades, PF 0.38-0.65. A whipsaw machine: ~1,000 trades/coin at 30-37% win rate |
+| gator_oscillator | Bill Williams Gator states + fan direction | Loser: -$7,538 combined, 1,025 trades. The 8-bar-displaced balance lines fan after the leg ends; eats expansion marks exhaustion, not initiation |
+| balance_of_power | Livshin BOP(14) zero-cross | Loser: -$15,141 combined, 2,264 trades, WR 26.0%. The smoothed BOP cross is too slow a trigger for 1h crypto; 800+ whipsaw trades/coin feed the fee man |
+
+## Empirical direction
+
+The honest-loser streak holds for a ninth batch: 9 of 12 print red
+combined, and the three non-red (oops_pattern, ulcer_index, turtle_classic)
+are regime luck or noise - oops is HYPE-only, ulcer is fee-bound Donchian
+breakout, turtle is breakeven. The through-line is the same as batches 10-12
+with a new accent: zero-lag filters (decycler, reflex, supersmoother) lose
+*because* they don't lag - 1h crypto price crosses a lag-free trend line
+constantly, and the confirmations don't fix the trade count. Williams'
+bar-color mechanics (accelerator, gator) whipsaw hardest of all: 3,113 trades
+for -$25,444. Nothing here is anywhere near a live gate. Per-coin detail
+lives in each strategy's BACKTEST.md / CALIBRATION.md.
