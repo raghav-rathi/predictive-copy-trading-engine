@@ -1,61 +1,31 @@
-"""William Blau's SMI Ergodic Oscillator.
+"""William Blau's SMI Ergodic Oscillator indicators.
 
-    m     = c.diff()
-    smi   = 100 * EMA(EMA(m, 5), 20) / EMA(EMA(abs(m), 5), 20)
-    signal = EMA(smi, 5)
+Blau ("Momentum, Direction, and Divergence", 1995) defines the ergodic
+oscillator as double-smoothed momentum normalized by double-smoothed
+absolute momentum:
 
-Blau's SMI Ergodic ("Momentum, Direction, and Divergence", 1995) is
-the same double-smoothed ergodic lineage as the True Strength Index:
-an exponentially smoothed ratio of double-smoothed momentum to
-double-smoothed absolute momentum. The TSI ships with slower 25/13
-parameters; the SMI Ergodic uses Blau's faster 5/20 ergodic pair and
-a 5-bar signal line, oscillating in a bounded [-100, +100] band with
-overbought/oversold zones at +/-40. Being a ratio of the momentum to
-its own magnitude, the oscillator is exactly scale-invariant — a
-10-point-per-bar grind and a 1000-point-per-bar grind read the same.
+    SMI = 100 * EMA(EMA(d, r), s) / EMA(EMA(|d|, r), s),  d = C - C[1]
 
-Columns:
-
-    smi         -- SMI Ergodic oscillator (percent, bounded +/-100)
-    smi_signal  -- 5-bar EMA of smi (the trigger/signal line)
-    atr         -- Wilder ATR(14) for the risk layer
-
-No lookahead: the EMAs at bar j use data through bar j only
-(min_periods=n via B.ema). Division by zero (flat series, momentum
-= 0) is guarded to 0, not NaN — the warmup NaN band from the
-double smoothing is preserved.
+The "SMI Ergodic" packaging adds a signal line (EMA of SMI) for trigger
+crosses. The double smoothing makes it bounded and less whipsaw-prone
+than raw momentum; the zero line marks the momentum regime. All causal:
+only data through bar i's close.
 """
 
-import numpy as np
 import pandas as pd
 
 from strategies import base as B
 
-ERGO_FAST = 5   # inner ergodic smoothing (Blau's SMI Ergodic, fixed a priori)
-ERGO_SLOW = 20  # outer ergodic smoothing (Blau's SMI Ergodic, fixed a priori)
-SIGNAL_N = 5    # signal-line smoothing (Blau's SMI Ergodic, fixed a priori)
-ZONE = 40.0     # overbought / oversold zones (Blau's SMI Ergodic, fixed a priori)
+R = 20  # first smoothing stage (Blau varied this freely by market)
+S = 5  # second smoothing stage
+SIG = 5  # signal-line EMA
 
 
-def smi_ergodic(m: pd.Series, fast: int = ERGO_FAST,
-                slow: int = ERGO_SLOW) -> pd.Series:
-    """Blau's SMI Ergodic of the momentum series ``m``.
-
-    100 * EMA(EMA(m, fast), slow) / EMA(EMA(|m|, fast), slow).
-    Bounded in [-100, +100] (|ema(m)| <= ema(|m|)); flat-momentum
-    bars (denominator == 0) yield 0; the warmup band stays NaN.
-    """
-    num = B.ema(B.ema(m, fast), slow)
-    den = B.ema(B.ema(m.abs(), fast), slow)
-    ratio = 100.0 * num / den.where(den != 0.0)
-    return ratio.mask(den == 0.0, 0.0).rename("smi")
-
-
-def add_indicators(df: pd.DataFrame, fast: int = ERGO_FAST,
-                   slow: int = ERGO_SLOW,
-                   signal_n: int = SIGNAL_N) -> pd.DataFrame:
+def add_indicators(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
-    df["smi"] = smi_ergodic(df["c"].diff(), fast, slow)
-    df["smi_signal"] = B.ema(df["smi"], signal_n)
-    df["atr"] = B.atr(df["h"], df["l"], df["c"], 14)
+    d = df["c"].diff()
+    num = B.ema(B.ema(d, R), S)
+    den = B.ema(B.ema(d.abs(), R), S)
+    df["smi"] = 100.0 * num / den.replace(0, float("nan"))
+    df["smi_signal"] = B.ema(df["smi"], SIG)
     return df

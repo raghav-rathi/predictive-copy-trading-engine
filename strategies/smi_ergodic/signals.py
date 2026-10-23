@@ -1,42 +1,26 @@
-"""SMI Ergodic oscillator / signal-line crossover, zone-gated.
+"""SMI Ergodic signals (signal-line cross + zero-line regime filter).
 
-Blau's classic SMI Ergodic trade: act on crosses of the oscillator
-with its 5-bar signal line ONLY when the cross starts from the
-relevant extreme zone — the cross must mean-revert FROM oversold
-(buy) or overbought (sell), not chop in the mid-band:
-
-    long_entry  = crossed_above(smi, smi_signal) & (smi.shift(1) <= -40)
-    short_entry = crossed_below(smi, smi_signal) & (smi.shift(1) >= +40)
-    long_exit   = crossed_below(smi, smi_signal)
-    short_exit  = crossed_above(smi, smi_signal)
-
-The zone gate reads the PRIOR bar's smi: crossed_above at bar j
-already tells us smi_{j-1} <= signal_{j-1}, and the additional
-smi_{j-1} <= -40 says the cross began deep in oversold territory —
-the classic Blau "hook out of the zone". Exits are the plain
-opposite cross (the momentum turn is the edge; no fixed target).
-
-Signal columns are boolean, no NaN, no lookahead: the cross at bar
-j uses data through bar j's close, and the harness executes at the
-next bar's open.
+long_entry  = SMI crosses above its signal line while SMI > 0
+short_entry = SMI crosses below its signal line while SMI < 0
+long_exit   = SMI crosses back below its signal line
+short_exit  = SMI crosses back above its signal line
+Execution next-bar-open per the harness contract.
 """
 
 import pandas as pd
 
-from strategies.base import crossed_above, crossed_below
-from strategies.smi_ergodic.indicators import ZONE
+from strategies import base as B
 
 
 def add_signals(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
-    smi = df["smi"]
-    sig = df["smi_signal"]
-    up = crossed_above(smi, sig).fillna(False)
-    dn = crossed_below(smi, sig).fillna(False)
-    oversold_prior = (smi.shift(1) <= -ZONE).fillna(False)
-    overbought_prior = (smi.shift(1) >= ZONE).fillna(False)
-    df["long_entry"] = (up & oversold_prior).astype(bool)
-    df["short_entry"] = (dn & overbought_prior).astype(bool)
-    df["long_exit"] = dn.astype(bool)
-    df["short_exit"] = up.astype(bool)
+    smi, sig = df["smi"], df["smi_signal"]
+    long_x = B.crossed_above(smi, sig) & (smi > 0)
+    short_x = B.crossed_below(smi, sig) & (smi < 0)
+    df["long_entry"] = long_x
+    df["short_entry"] = short_x
+    df["long_exit"] = B.crossed_below(smi, sig)
+    df["short_exit"] = B.crossed_above(smi, sig)
+    for col in ("long_entry", "short_entry", "long_exit", "short_exit"):
+        df[col] = df[col].fillna(False).astype(bool)
     return df
