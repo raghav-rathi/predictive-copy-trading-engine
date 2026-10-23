@@ -1,4 +1,4 @@
-"""RSI divergence tests. Network-free, synthetic data only."""
+"""RSI(14) swing-pivot divergence tests. Network-free, synthetic data only."""
 
 import os
 import sys
@@ -10,126 +10,279 @@ import numpy as np
 import pandas as pd
 
 from strategies.rsi_divergence import indicators, risk, signals
-from strategies.rsi_divergence.signals import (
-    _bull_divergence, _bear_divergence, _fractal_pivots)
+from strategies import base as B
 
 
-def _frame(n, c):
-    c = pd.Series(np.asarray(c, float))
-    o = pd.Series(np.concatenate([[c.iloc[0]], c.iloc[:-1].to_numpy()]))
-    h = pd.concat([o, c], axis=1).max(axis=1) + 0.05
-    l = pd.concat([o, c], axis=1).min(axis=1) - 0.05
+def _frame_from_close(c):
+    c = np.asarray(c, dtype=float)
+    n = len(c)
+    o = np.concatenate([[c[0]], c[:-1]])
+    h = np.maximum(o, c) * 1.002
+    l = np.minimum(o, c) * 0.998
+    v = np.full(n, 100.0)
     t = (1_700_000_000_000 + np.arange(n) * 3_600_000).astype("int64")
-    return pd.DataFrame({"t": t, "o": o, "h": h, "l": l, "c": c,
-                         "v": np.full(n, 100.0)})
+    return pd.DataFrame({"t": t, "o": o, "h": h, "l": l, "c": c, "v": v})
 
 
-def _div_frame():
-    # hand-built frame: RSI column overridden to force a textbook
-    # bullish divergence: price swing lows at 40 (98) and 60 (96),
-    # RSI 28 then 32 (higher low, < 35); RSI re-crosses 30 after the
-    # divergence is confirmed at bar 65 (pivot 60 + 5)
-    n = 120
-    c = np.full(n, 100.0)
-    c[40], c[60] = 98.0, 96.0
-    df = indicators.add_indicators(_frame(n, c))
-    rsi = np.full(n, 50.0)
-    rsi[40], rsi[60] = 28.0, 32.0
-    rsi[61:66] = 25.0
-    rsi[66:76] = np.linspace(25.0, 35.0, 10)  # crosses 30 ~bar 70
-    df["rsi"] = rsi
-    return df
+def _geom(a, b, n):
+    return a * (b / a) ** (np.arange(n) / (n - 1))
 
 
-class TestRSIDivergence(unittest.TestCase):
-    def test_rsi_wilder_sane(self):
-        n = 200
-        c = 100.0 + 0.2 * np.arange(n)
-        df = indicators.add_indicators(_frame(n, c))
-        tail = df["rsi"].iloc[-20:].dropna()
-        self.assertTrue(((tail >= 0) & (tail <= 100)).all())
-        self.assertGreater(tail.mean(), 90.0)  # strong uptrend -> high RSI
+def _frame(n=500, seed=7, drift=0.0005, vol=0.01):
+    rng = np.random.default_rng(seed)
+    rets = rng.normal(drift, vol, n)
+    c = 100 * np.exp(np.cumsum(rets))
+    return _frame_from_close(c)
 
-    def test_bull_divergence_detected(self):
-        lows = [40, 60]
-        closes = np.full(120, 100.0)
-        closes[40], closes[60] = 100.0, 96.0
-        rsi = np.full(120, 50.0)
-        rsi[40], rsi[60] = 28.0, 32.0
-        self.assertTrue(_bull_divergence(lows, closes, rsi, 60))
 
-    def test_bull_divergence_rejected_cases(self):
-        lows = [40, 60]
-        closes = np.full(120, 100.0)
-        closes[40], closes[60] = 100.0, 96.0
-        # RSI not oversold enough at the second low
-        r1 = np.full(120, 50.0); r1[40], r1[60] = 30.0, 36.0
-        self.assertFalse(_bull_divergence(lows, closes, r1, 60))
-        # RSI makes a lower low (no divergence)
-        r2 = np.full(120, 50.0); r2[40], r2[60] = 32.0, 28.0
-        self.assertFalse(_bull_divergence(lows, closes, r2, 60))
-        # price makes a higher low (no divergence)
-        c3 = closes.copy(); c3[60] = 101.0
-        r3 = np.full(120, 50.0); r3[40], r3[60] = 28.0, 32.0
-        self.assertFalse(_bull_divergence(lows, c3, r3, 60))
+def _regular_bullish_series():
+    """Grind down (deep RSI trough at bar 47), bounce, sharp lower low at
+    bar 60. Pivot lows (47, 60): price 99.8 -> 95.8 (LL), RSI ~19 -> ~30
+    (HL). Expect long_entry + short_exit at the confirmation bar 63."""
+    return np.concatenate([
+        _geom(100, 133.5, 30),        # 0..29 rise
+        _geom(133.5, 100, 19)[1:],    # 30..47 grind down
+        _geom(100, 115, 12)[1:],      # 48..58 bounce
+        [104.0, 96.0, 97.0, 98.0],    # 59..62 sharp V, pivot low at 60
+        _geom(98, 100, 28)[1:],       # 63..89 drift up
+    ])
 
-    def test_bear_divergence_detected(self):
-        highs = [40, 60]
-        closes = np.full(120, 100.0)
-        closes[40], closes[60] = 100.0, 104.0
-        rsi = np.full(120, 50.0)
-        rsi[40], rsi[60] = 72.0, 68.0
-        self.assertTrue(_bear_divergence(highs, closes, rsi, 60))
 
-    def test_confirmation_entry_fires(self):
-        df = _div_frame()
-        sig = signals.add_signals(df)
-        longs = sig.index[sig["long_entry"]].tolist()
-        # divergence confirmed at 65 (pivot 60 + 5); RSI re-crosses 30
-        # between 65 and 85
-        self.assertTrue(any(65 <= j <= 85 for j in longs),
-                        f"no confirmed entry; got {longs[:6]}")
+def _regular_bearish_series():
+    """Rise, sharp spike (RSI ~100 at bar 31), decline, slow grind to a
+    higher high at bar 67. Pivot highs (31, 67): price 140.3 -> 142.3
+    (HH), RSI ~100 -> ~82 (LH). Expect short_entry + long_exit at bar 70."""
+    return np.concatenate([
+        _geom(100, 130, 30),          # 0..29 rise
+        [135.0, 140.0],               # 30..31 spike, pivot high at 31
+        _geom(140, 110, 19)[1:],      # 32..49 decline
+        _geom(110, 142, 19)[1:],      # 50..67 grind up, pivot high at 67
+        _geom(142, 135, 23)[1:],      # 68..89 drift down
+    ])
 
-    def test_no_confirmation_no_entry(self):
-        # same divergence but RSI never re-crosses 30 -> setup expires
-        df = _div_frame()
-        df["rsi"] = np.full(len(df), 50.0)
-        df.loc[40, "rsi"] = 28.0
-        df.loc[60, "rsi"] = 32.0  # divergence exists, no re-cross
-        sig = signals.add_signals(df)
-        self.assertFalse(sig["long_entry"].any())
+
+def _hidden_bullish_series():
+    """Uptrend with two pullbacks. Pivot lows (35, 60): price 131.7 ->
+    135.7 (HL), RSI ~66 -> ~40 (LL). Expect long_entry + short_exit at
+    bar 63. (The pivot-high pair (29, 50) is a regular bearish on this
+    series and fires short_entry at bar 53 -- real concurrent behavior.)"""
+    return np.concatenate([
+        _geom(100, 140, 30),          # 0..29 rise
+        _geom(140, 132, 7)[1:],      # 30..35 pullback, pivot low at 35
+        _geom(132, 150, 16)[1:],     # 36..50 rally, pivot high at 50
+        _geom(150, 136, 11)[1:],     # 51..60 pullback, pivot low at 60
+        _geom(136, 145, 30)[1:],     # 61..89 rally
+    ])
+
+
+def _hidden_bearish_series():
+    """Downtrend with two rallies. Pivot highs (35, 60): price 108.2 ->
+    106.2 (LH), RSI ~36 -> ~65 (HH). Expect short_entry + long_exit at
+    bar 63. (The pivot-low pair (29, 50) is a regular bullish and fires
+    long_entry at bar 53 -- real concurrent behavior.)"""
+    return np.concatenate([
+        _geom(140, 100, 30),          # 0..29 decline
+        _geom(100, 108, 7)[1:],      # 30..35 rally, pivot high at 35
+        _geom(108, 88, 16)[1:],      # 36..50 decline, pivot low at 50
+        _geom(88, 106, 11)[1:],      # 51..60 rally, pivot high at 60
+        _geom(106, 100, 30)[1:],     # 61..89 drift down
+    ])
+
+
+class TestIndicators(unittest.TestCase):
+    def test_columns_present(self):
+        ind = indicators.add_indicators(_frame())
+        for col in ("rsi14", "pivot_high", "pivot_low", "pivot_high_price",
+                    "pivot_high_rsi", "pivot_low_price", "pivot_low_rsi", "atr"):
+            self.assertIn(col, ind.columns)
+
+    def test_rsi14_matches_base_rsi(self):
+        df = _frame()
+        ind = indicators.add_indicators(df)
+        pd.testing.assert_series_equal(ind["rsi14"], B.rsi(df["c"], 14),
+                                       check_names=False)
+
+    def test_pivot_marks_match_spec(self):
+        # Single V: strict rise, dip to 90 at bar 23, strict rise after.
+        # Bar 23 must be the only swing low (l[23] == min(l[20..26])).
+        c = np.concatenate([
+            _geom(100, 101, 20),                       # 0..19 strict rise
+            [97.0, 94.0, 92.0, 90.0, 92.0, 94.0, 96.0, 98.0],  # 20..27 V
+            _geom(98, 99, 13)[1:],                     # 28..40 strict rise
+        ])
+        ind = indicators.add_indicators(_frame_from_close(c))
+        self.assertTrue(ind["pivot_low"].iloc[23],
+                        "bar 23 must be marked a swing low")
+        self.assertFalse(ind["pivot_high"].iloc[23])
+        self.assertEqual(ind["pivot_low"].iloc[:20].sum(), 0)
+        self.assertEqual(ind["pivot_low"].iloc[28:].sum(), 0)
+        # helper columns store price + rsi at the pivot bar, NaN elsewhere
+        self.assertAlmostEqual(ind["pivot_low_price"].iloc[23],
+                               ind["l"].iloc[23])
+        self.assertAlmostEqual(ind["pivot_low_rsi"].iloc[23],
+                               ind["rsi14"].iloc[23])
+        self.assertTrue(np.isnan(ind["pivot_low_price"].iloc[22]))
+
+    def test_pivot_confirmation_delay(self):
+        # Regular-bullish series: second pivot low at bar 60, confirmed at
+        # bar 63. With data only through bar 62 the pair is unconfirmable:
+        # no entry may fire; with bar 63 present the entry fires at 63.
+        df = _frame_from_close(_regular_bullish_series())
+        early = signals.add_signals(
+            indicators.add_indicators(df.iloc[:63]))  # bars 0..62
+        self.assertEqual(early["long_entry"].sum(), 0)
+        self.assertEqual(early["short_entry"].sum(), 0)
+        full = signals.add_signals(indicators.add_indicators(df))
+        self.assertTrue(full["long_entry"].iloc[63],
+                        "entry must fire on the confirmation bar")
 
     def test_no_lookahead(self):
-        n = 200
-        rng = np.random.default_rng(23)
-        c = 100 + np.cumsum(rng.normal(0, 0.4, n))
-        df1 = indicators.add_indicators(_frame(n, c))
-        sig1 = signals.add_signals(df1)
-        df2 = indicators.add_indicators(_frame(2 * n, np.concatenate([c, c])))
-        sig2 = signals.add_signals(df2)
-        pd.testing.assert_series_equal(
-            sig1["long_entry"], sig2["long_entry"].iloc[:n].reset_index(drop=True),
-            check_names=False)
+        df = _frame(n=400, seed=11)
+        full = signals.add_signals(indicators.add_indicators(df))
+        for j in (120, 250, 399):
+            trunc = signals.add_signals(
+                indicators.add_indicators(df.iloc[: j + 1]))
+            for col in ("long_entry", "short_entry", "long_exit", "short_exit"):
+                self.assertEqual(bool(full[col].iloc[j]),
+                                 bool(trunc[col].iloc[j]),
+                                 f"{col} at bar {j}")
 
-    def test_signal_columns_bool_no_nan(self):
-        n = 300
-        rng = np.random.default_rng(29)
-        c = 100 + np.cumsum(rng.normal(0, 0.5, n))
-        sig = signals.add_signals(indicators.add_indicators(_frame(n, c)))
+    def test_does_not_mutate_input(self):
+        df = _frame()
+        before = df.copy()
+        indicators.add_indicators(df)
+        pd.testing.assert_frame_equal(df, before)
+
+
+class TestSignals(unittest.TestCase):
+    def test_columns_boolean_no_nan(self):
+        sig = signals.add_signals(indicators.add_indicators(_frame()))
         for col in ("long_entry", "short_entry", "long_exit", "short_exit"):
-            self.assertFalse(sig[col].isna().any())
-            self.assertTrue(sig[col].dtype == bool)
+            self.assertIn(col, sig.columns)
+            self.assertTrue(sig[col].dtype == bool, col)
+            self.assertFalse(sig[col].isna().any(), col)
 
-    def test_risk_config_sane(self):
-        self.assertEqual(risk.WARMUP, 120)
+    def test_nan_warmup(self):
+        # 50-bar frame: RSI NaN for the first 13 bars -- signals must still
+        # be boolean with no NaN anywhere.
+        sig = signals.add_signals(indicators.add_indicators(_frame(n=50)))
+        for col in ("long_entry", "short_entry", "long_exit", "short_exit"):
+            self.assertTrue(sig[col].dtype == bool, col)
+            self.assertFalse(sig[col].isna().any(), col)
+
+    def test_regular_bullish_detected(self):
+        ind = indicators.add_indicators(
+            _frame_from_close(_regular_bullish_series()))
+        self.assertTrue(ind["pivot_low"].iloc[47])
+        self.assertTrue(ind["pivot_low"].iloc[60])
+        # price lower low, RSI higher low (comfortable margins)
+        self.assertLess(ind["pivot_low_price"].iloc[60],
+                        ind["pivot_low_price"].iloc[47])
+        self.assertGreater(ind["pivot_low_rsi"].iloc[60],
+                           ind["pivot_low_rsi"].iloc[47])
+        sig = signals.add_signals(ind)
+        self.assertTrue(sig["long_entry"].iloc[63])
+        self.assertTrue(sig["short_exit"].iloc[63])
+        self.assertFalse(sig["long_exit"].iloc[63])
+
+    def test_regular_bearish_detected(self):
+        ind = indicators.add_indicators(
+            _frame_from_close(_regular_bearish_series()))
+        self.assertTrue(ind["pivot_high"].iloc[31])
+        self.assertTrue(ind["pivot_high"].iloc[67])
+        self.assertGreater(ind["pivot_high_price"].iloc[67],
+                           ind["pivot_high_price"].iloc[31])
+        self.assertLess(ind["pivot_high_rsi"].iloc[67],
+                        ind["pivot_high_rsi"].iloc[31])
+        sig = signals.add_signals(ind)
+        self.assertTrue(sig["short_entry"].iloc[70])
+        self.assertTrue(sig["long_exit"].iloc[70])
+        self.assertFalse(sig["short_exit"].iloc[70])
+
+    def test_hidden_bullish_detected(self):
+        ind = indicators.add_indicators(
+            _frame_from_close(_hidden_bullish_series()))
+        self.assertTrue(ind["pivot_low"].iloc[35])
+        self.assertTrue(ind["pivot_low"].iloc[60])
+        # price higher low, RSI lower low
+        self.assertGreater(ind["pivot_low_price"].iloc[60],
+                           ind["pivot_low_price"].iloc[35])
+        self.assertLess(ind["pivot_low_rsi"].iloc[60],
+                        ind["pivot_low_rsi"].iloc[35])
+        sig = signals.add_signals(ind)
+        self.assertTrue(sig["long_entry"].iloc[63])
+        self.assertTrue(sig["short_exit"].iloc[63])
+        # the (29, 50) high pair on this series is a genuine regular
+        # bearish -- it must fire exactly there and nowhere else
+        self.assertTrue(sig["short_entry"].iloc[53])
+
+    def test_hidden_bearish_detected(self):
+        ind = indicators.add_indicators(
+            _frame_from_close(_hidden_bearish_series()))
+        self.assertTrue(ind["pivot_high"].iloc[35])
+        self.assertTrue(ind["pivot_high"].iloc[60])
+        # price lower high, RSI higher high
+        self.assertLess(ind["pivot_high_price"].iloc[60],
+                        ind["pivot_high_price"].iloc[35])
+        self.assertGreater(ind["pivot_high_rsi"].iloc[60],
+                           ind["pivot_high_rsi"].iloc[35])
+        sig = signals.add_signals(ind)
+        self.assertTrue(sig["short_entry"].iloc[63])
+        self.assertTrue(sig["long_exit"].iloc[63])
+        # the (29, 50) low pair on this series is a genuine regular
+        # bullish -- it must fire exactly there and nowhere else
+        self.assertTrue(sig["long_entry"].iloc[53])
+
+    def test_no_double_fire_on_same_pair(self):
+        # Each confirmed pivot pair fires exactly once, on the
+        # confirmation bar of the newly confirmed pivot.
+        sig = signals.add_signals(indicators.add_indicators(
+            _frame_from_close(_regular_bullish_series())))
+        self.assertEqual(sig["long_entry"].sum(), 1)
+        self.assertEqual(sig["short_exit"].sum(), 1)
+        sig2 = signals.add_signals(indicators.add_indicators(
+            _frame_from_close(_regular_bearish_series())))
+        self.assertEqual(sig2["short_entry"].sum(), 1)
+        self.assertEqual(sig2["long_exit"].sum(), 1)
+
+    def test_exits_only_on_opposite_divergence(self):
+        # Regular bullish fires long_entry + short_exit, never long_exit.
+        sig = signals.add_signals(indicators.add_indicators(
+            _frame_from_close(_regular_bullish_series())))
+        self.assertEqual(sig["long_exit"].sum(), 0)
+        self.assertEqual(sig["short_entry"].sum(), 0)
+        # Regular bearish fires short_entry + long_exit, never short_exit.
+        sig2 = signals.add_signals(indicators.add_indicators(
+            _frame_from_close(_regular_bearish_series())))
+        self.assertEqual(sig2["short_exit"].sum(), 0)
+        self.assertEqual(sig2["long_entry"].sum(), 0)
+
+
+class TestRiskAndRegistration(unittest.TestCase):
+    def test_risk_config_values(self):
+        self.assertEqual(risk.RISK.atr_window, 14)
         self.assertEqual(risk.RISK.stop_atr_mult, 1.5)
-        self.assertEqual(risk.RISK.trail_atr_mult, 2.5)
+        self.assertEqual(risk.RISK.trail_atr_mult, 2.0)
+        self.assertIsNone(risk.RISK.target_atr_mult)
+        self.assertEqual(risk.RISK.max_hold_bars, 96)
+        self.assertEqual(risk.RISK.risk_frac, 0.01)
+        self.assertEqual(risk.RISK.max_leverage, 3.0)
+        self.assertEqual(risk.RISK.fee_rate, 0.00045)
+        self.assertEqual(risk.RISK.slippage_rate, 0.0001)
+        self.assertTrue(risk.RISK.allow_longs)
+        self.assertTrue(risk.RISK.allow_shorts)
+        self.assertEqual(risk.WARMUP, 80)
 
     def test_registration(self):
-        import strategies.rsi_divergence as m
+        import strategies.rsi_divergence as mod
         from strategies.registry import REGISTRY
+
         self.assertIn("rsi_divergence", REGISTRY)
-        self.assertIs(REGISTRY["rsi_divergence"], m.SPEC)
+        self.assertIs(REGISTRY["rsi_divergence"], mod.SPEC)
+        self.assertEqual(mod.SPEC.slug, "rsi_divergence")
+        self.assertEqual(mod.SPEC.name, "RSI(14) Swing-Pivot Divergence")
+        self.assertEqual(mod.SPEC.warmup_bars, risk.WARMUP)
+        self.assertEqual(set(mod.__all__), {"indicators", "signals", "risk", "SPEC"})
 
 
 if __name__ == "__main__":
