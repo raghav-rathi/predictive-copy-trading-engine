@@ -1,84 +1,133 @@
-"""RSI(14) divergence signals on confirmed swing pivots.
+"""RSI regular-divergence signals (Wilder lineage).
 
-Divergence is measured between the last two *confirmed* swing pivots,
-comparing the price pivot against the RSI(14) value at the same pivot
-bars. A pivot centered at bar p is confirmed at the close of bar p+k,
-so the signal on the confirmation bar uses only data known at that
-bar's close; the harness executes at the next bar's open.
+  Regular bullish: price prints a lower 5-bar fractal swing low while
+    RSI prints a higher low there, RSI < 35 at the second low ->
+    pending long; LONG when RSI crosses back above 30 within the next
+    20 bars (confirmation), else the setup expires.
+  Regular bearish: price higher swing high, RSI lower high, RSI > 65
+    at the second high -> SHORT when RSI crosses back below 70 within
+    20 bars.
 
-    Regular bullish: price lower low  AND rsi higher low  -> long_entry
-    Hidden bullish:  price higher low AND rsi lower low   -> long_entry
-    Regular bearish: price higher high AND rsi lower high -> short_entry
-    Hidden bearish:  price lower high  AND rsi higher high -> short_entry
+  long_exit / short_exit: none (all False) — exits come from the risk
+    module (1.5xATR stop, 2.5xATR trail, 72-bar max hold).
 
-Each confirmed pivot pair fires at most once: the signal is set on the
-confirmation bar of the *second* (newly confirmed) pivot, and the pair
-is never revisited.
+New setups are ignored while a pending confirmation is open, and the
+backtest harness ignores entries while a position is open, so this is
+effectively one position at a time.
 
-Exits: a long exits when any bearish divergence (regular or hidden)
-confirms; a short exits when any bullish divergence confirms. ATR
-stop / chandelier trail / max-hold exits come from risk.py.
+Non-implemented extension: hidden divergence (price higher low + RSI
+lower low in an uptrend as a continuation signal) is deliberately not
+built here; it answers a different question (trend continuation) and
+would need its own entry/exit logic.
 
-Signal columns are boolean, no NaN, no lookahead. Loops run only over
-pivot bars (few); everything else is vectorized.
+Pivots are 5-bar fractals confirmed with the causal 5-bar lag: a pivot
+centred at bar j is usable from bar j+5. Both pivots of a divergence
+must fall inside a 120-bar window.
 """
 
 import numpy as np
 import pandas as pd
 
-from strategies.rsi_divergence import indicators as I
+from strategies import base as B
+
+PIVOT_K = 5
+DIV_WINDOW = 120
+BULL_RSI_MAX = 35.0   # RSI must be under this at the second swing low
+BEAR_RSI_MIN = 65.0   # RSI must be over this at the second swing high
+CONFIRM_BARS = 20     # pending setup expiry
+LONG_CONFIRM = 30.0
+SHORT_CONFIRM = 70.0
 
 
-def add_signals(df: pd.DataFrame) -> pd.DataFrame:
+def _fractal_pivots(values: np.ndarray, k: int, kind: str) -> list:
+    n = len(values)
+    out = []
+    for j in range(k, n - k):
+        w = values[j - k:j + k + 1]
+        if kind == "low" and int(np.argmin(w)) == k:
+            out.append(j)
+        elif kind == "high" and int(np.argmax(w)) == k:
+            out.append(j)
+    return out
+
+
+def _bull_divergence(lows, closes, rsi, j2, window=DIV_WINDOW,
+                     rsi_max=BULL_RSI_MAX) -> bool:
+    """Regular bullish divergence at the confirmed price swing low j2."""
+    if np.isnan(rsi[j2]) or rsi[j2] >= rsi_max:
+        return False
+    prev = [j for j in lows if j < j2 and j2 - j <= window]
+    if not prev:
+        return False
+    j1 = prev[-1]
+    if np.isnan(rsi[j1]):
+        return False
+    return bool(closes[j2] < closes[j1] and rsi[j2] > rsi[j1])
+
+
+def _bear_divergence(highs, closes, rsi, j2, window=DIV_WINDOW,
+                     rsi_min=BEAR_RSI_MIN) -> bool:
+    """Regular bearish divergence at the confirmed price swing high j2."""
+    if np.isnan(rsi[j2]) or rsi[j2] <= rsi_min:
+        return False
+    prev = [j for j in highs if j < j2 and j2 - j <= window]
+    if not prev:
+        return False
+    j1 = prev[-1]
+    if np.isnan(rsi[j1]):
+        return False
+    return bool(closes[j2] > closes[j1] and rsi[j2] < rsi[j1])
+
+
+def add_signals(df: pd.DataFrame, pivot_k: int = PIVOT_K,
+                rsi_bull_max: float = BULL_RSI_MAX,
+                rsi_bear_min: float = BEAR_RSI_MIN,
+                confirm_bars: int = CONFIRM_BARS) -> pd.DataFrame:
     df = df.copy()
-    k = int(df.attrs.get("pivot_k", I.PIVOT_LEFT))
     n = len(df)
+    c = df["c"].to_numpy()
+    rsi = df["rsi"].to_numpy()
 
+    lows = _fractal_pivots(c, pivot_k, "low")
+    highs = _fractal_pivots(c, pivot_k, "high")
+
+    # pending setups keyed by expiry bar
     long_entry = np.zeros(n, dtype=bool)
     short_entry = np.zeros(n, dtype=bool)
-    long_exit = np.zeros(n, dtype=bool)
-    short_exit = np.zeros(n, dtype=bool)
+    pending_long_expiry = -1
+    pending_short_expiry = -1
 
-    pl_price = df["pivot_low_price"].to_numpy()
-    pl_rsi = df["pivot_low_rsi"].to_numpy()
-    ph_price = df["pivot_high_price"].to_numpy()
-    ph_rsi = df["pivot_high_rsi"].to_numpy()
+    div_long_at = {}
+    for j2 in lows:
+        if _bull_divergence(lows, c, rsi, j2, rsi_max=rsi_bull_max):
+            div_long_at[j2 + pivot_k] = True   # confirmation bar
+    div_short_at = {}
+    for j2 in highs:
+        if _bear_divergence(highs, c, rsi, j2, rsi_min=rsi_bear_min):
+            div_short_at[j2 + pivot_k] = True
 
-    pl_bars = np.flatnonzero(~np.isnan(pl_price))
-    ph_bars = np.flatnonzero(~np.isnan(ph_price))
+    rsi_s = df["rsi"]
+    cross_up_30 = B.crossed_above(rsi_s, LONG_CONFIRM).fillna(False).to_numpy()
+    cross_dn_70 = B.crossed_below(rsi_s, SHORT_CONFIRM).fillna(False).to_numpy()
 
-    # --- bullish divergences (pivot lows) -> long entries / short exits ---
-    for j in range(1, len(pl_bars)):
-        a, b = int(pl_bars[j - 1]), int(pl_bars[j])
-        c = b + k  # confirmation bar of the newly confirmed pivot
-        if c >= n:
-            continue
-        if np.isnan(pl_rsi[a]) or np.isnan(pl_rsi[b]):
-            continue
-        if pl_price[b] < pl_price[a] and pl_rsi[b] > pl_rsi[a]:
-            long_entry[c] = True    # regular bullish
-            short_exit[c] = True
-        elif pl_price[b] > pl_price[a] and pl_rsi[b] < pl_rsi[a]:
-            long_entry[c] = True    # hidden bullish (trend continuation)
-            short_exit[c] = True
-
-    # --- bearish divergences (pivot highs) -> short entries / long exits ---
-    for j in range(1, len(ph_bars)):
-        a, b = int(ph_bars[j - 1]), int(ph_bars[j])
-        c = b + k
-        if c >= n:
-            continue
-        if np.isnan(ph_rsi[a]) or np.isnan(ph_rsi[b]):
-            continue
-        if ph_price[b] > ph_price[a] and ph_rsi[b] < ph_rsi[a]:
-            short_entry[c] = True   # regular bearish
-            long_exit[c] = True
-        elif ph_price[b] < ph_price[a] and ph_rsi[b] > ph_rsi[a]:
-            short_entry[c] = True   # hidden bearish (trend continuation)
-            long_exit[c] = True
+    for i in range(n):
+        if div_long_at.get(i) and pending_long_expiry < i:
+            pending_long_expiry = i + confirm_bars
+        if div_short_at.get(i) and pending_short_expiry < i:
+            pending_short_expiry = i + confirm_bars
+        if pending_long_expiry >= i and cross_up_30[i]:
+            long_entry[i] = True
+            pending_long_expiry = -1
+        if pending_short_expiry >= i and cross_dn_70[i]:
+            short_entry[i] = True
+            pending_short_expiry = -1
+        if pending_long_expiry == i:
+            pending_long_expiry = -1
+        if pending_short_expiry == i:
+            pending_short_expiry = -1
 
     df["long_entry"] = long_entry
     df["short_entry"] = short_entry
-    df["long_exit"] = long_exit
-    df["short_exit"] = short_exit
+    df["long_exit"] = pd.Series(False, index=df.index)
+    df["short_exit"] = pd.Series(False, index=df.index)
     return df

@@ -1,4 +1,4 @@
-"""RSI(14) swing-pivot divergence: registration + re-exports."""
+"""Classical RSI divergence engine: registration + re-exports."""
 
 from strategies.rsi_divergence import indicators, risk, signals
 from strategies.base import StrategySpec
@@ -6,22 +6,17 @@ from strategies.registry import register
 
 SPEC = register(
     StrategySpec(
-        name="RSI(14) Swing-Pivot Divergence",
+        name="RSI regular divergence (Wilder)",
         slug="rsi_divergence",
         description=(
-            "Classic RSI(14) divergence on confirmed 3/3 swing pivots "
-            "(no lookahead: a pivot is usable 3 bars after its center). "
-            "Regular bullish (price lower low + RSI higher low) and "
-            "hidden bullish (price higher low + RSI lower low) enter "
-            "long; regular bearish and hidden bearish enter short, "
-            "each firing once on the confirmation bar of the newly "
-            "confirmed pivot pair. Longs exit on bearish-divergence "
-            "confirmation, shorts on bullish-divergence confirmation; "
-            "1.5xATR stop, 2xATR chandelier trail, 96-bar max hold, "
-            "both directions enabled."
+            "Wilder RSI(14) with 5-bar fractal pivots on price and RSI; "
+            "regular bullish/bearish divergences confirmed by an RSI "
+            "30/70 re-cross within 20 bars; 1.5xATR stop, 2.5xATR trail, "
+            "72-bar max hold. Hidden divergence is a listed extension, "
+            "not implemented."
         ),
-        source_name="RSI divergence (TradingSim / TradingView community)",
-        source_url="https://www.tradingsim.com/blog/divergence",
+        source_name="RSI divergence (classical, Wilder lineage)",
+        source_url="https://github.com/iamsengio/agent-trading-skills/blob/HEAD/skills/technical-strategies/rsi-divergence/SKILL.md",
         warmup_bars=risk.WARMUP,
         add_indicators=indicators.add_indicators,
         add_signals=signals.add_signals,
