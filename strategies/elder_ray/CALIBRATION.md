@@ -1,23 +1,18 @@
-# Elder Ray — Calibration Note
+# Elder Ray — Calibration
 
-## Parameters fixed a priori — no in-sample selection
+**Shipped:** Bull/Bear Power vs EMA(13); long on rising EMA + negative
+turning-up Bear Power; exit on zero cross against the trade; 2xATR
+stop, 3xATR trail.
 
-Every numeric choice in this strategy is taken directly from the
-published source, not from looking at backtest results:
+**What the numbers say:** −$5,347 combined, BTC −40.7% at PF 0.53.
+The single-bar turn detection fires on noise — most "exhaustion"
+reads are just 1h jitter. The rising-EMA gate doesn't filter because
+13-bar EMA whipsaws on 1h.
 
-| Parameter | Value | Source |
-|---|---|---|
-| EMA length | 13 | Elder's published constant (EMA(13) is the Elder Ray / Impulse baseline in *Trading for a Living*) |
-| Exit rules | bear/bull power crossing 0; EMA slope reversal | Elder's documented trigger/exit logic (buy dips in uptrends, exit when the power that set up the trade exhausts or the trend breaks) |
-| ATR window | 14 | risk-layer convention shared across the engine |
-| stop_atr_mult | 1.5 | engine risk convention for mean-reversion-style swing entries |
-| trail_atr_mult | 2.0 | engine risk convention |
-| target_atr_mult | None | exits are signal-driven by design |
-| max_hold_bars | 120 | ~5 days on 1h bars; stalled-position release |
-| risk_frac / max_leverage / fees | 0.01 / 3.0 / HL taker | engine risk convention |
+**Next experiment (only if revisited):** smooth Bear Power with a
+3-bar average before turn detection and require 5-bar EMA slope. Two
+changes, both aimed at the same defect: the trigger is too fast for
+the timeframe.
 
-There was **no parameter sweep, no grid search, and no look at the
-backtest numbers before fixing these values**. The BACKTEST.md
-results below are therefore a genuine out-of-idea test of Elder's
-published rules on 2026 Hyperliquid data — whatever they show,
-winner or loser, stands as reported.
+**Do not:** port to 1h with daily-calibrated instincts — Elder's
+setups assume daily bars where a "turn" means something.

@@ -1,64 +1,29 @@
-"""Elder Ray signals -- buy-the-dip / sell-the-rip around EMA(13).
+"""Elder Ray signals (Elder's exhaustion-with-trend entries).
 
-Long (dip in an uptrend, bears losing grip):
-
-    long_entry = (ema13 slope up)
-             AND (bear_power < 0)          -- bears still in control of the bar's low
-             AND (bear_power rising)       -- but weakening (higher than prior bar)
-
-Short (mirror -- rip in a downtrend, bulls losing grip):
-
-    short_entry = (ema13 slope down)
-              AND (bull_power > 0)
-              AND (bull_power falling)
-
-Exits -- momentum-mature or trend lost:
-
-    long_exit  = bear_power crosses ABOVE 0 (bears exhausted, the dip is over)
-             OR ema13 slope turns down (uptrend structure broken)
-    short_exit = bull_power crosses BELOW 0
-             OR ema13 slope turns up
-
-Slope comparisons use .shift(1) on the ema13 series itself; the crosses
-use the bar-i level against the shifted level, so the signal on bar i
-uses only data through bar i's close. The harness executes at bar i+1's
-open.
-
-Signal columns are boolean, no NaN.
+long_entry  = EMA(13) rising AND Bear Power < 0 turning up
+              (sellers exhausted, bulls still in control)
+short_entry = EMA(13) falling AND Bull Power > 0 turning down
+              (buyers exhausted, bears still in control)
+long_exit   = Bull Power crosses below 0 (buyers lost the highs)
+short_exit  = Bear Power crosses above 0 (sellers lost the lows)
+Execution next-bar-open per the harness contract.
 """
 
 import pandas as pd
 
-from strategies.base import crossed_above, crossed_below
-
-ZERO = 0.0
-
-
-def _b(s: pd.Series) -> pd.Series:
-    """Boolean series, no NaN."""
-    return s.fillna(False).astype(bool)
-
-
-def _zero(s: pd.Series) -> pd.Series:
-    return pd.Series(0.0, index=s.index)
-
 
 def add_signals(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
-    ema13 = df["ema13"]
-    bull = df["bull_power"]
-    bear = df["bear_power"]
-
-    ema_up = _b(ema13 > ema13.shift(1))
-    ema_down = _b(ema13 < ema13.shift(1))
-    bear_rising = _b(bear > bear.shift(1))
-    bull_falling = _b(bull < bull.shift(1))
-
-    df["long_entry"] = (ema_up & (bear < ZERO) & bear_rising).astype(bool)
-    df["short_entry"] = (ema_down & (bull > ZERO) & bull_falling).astype(bool)
-
-    bear_exhausted = crossed_above(bear, _zero(bear)).fillna(False)
-    bull_exhausted = crossed_below(bull, _zero(bull)).fillna(False)
-    df["long_exit"] = (bear_exhausted | ema_down).astype(bool)
-    df["short_exit"] = (bull_exhausted | ema_up).astype(bool)
+    ema = df["elder_ema"]
+    bull, bear = df["bull_power"], df["bear_power"]
+    ema_up = (ema > ema.shift(1)).fillna(False)
+    ema_dn = (ema < ema.shift(1)).fillna(False)
+    bear_turning_up = (bear > bear.shift(1)) & ~(bear.shift(1) > bear.shift(2))
+    bull_turning_dn = (bull < bull.shift(1)) & ~(bull.shift(1) < bull.shift(2))
+    df["long_entry"] = (bear_turning_up & (bear < 0) & ema_up).fillna(False)
+    df["short_entry"] = (bull_turning_dn & (bull > 0) & ema_dn).fillna(False)
+    df["long_exit"] = ((bull < 0) & (bull.shift(1) >= 0)).fillna(False)
+    df["short_exit"] = ((bear > 0) & (bear.shift(1) <= 0)).fillna(False)
+    for col in ("long_entry", "short_entry", "long_exit", "short_exit"):
+        df[col] = df[col].astype(bool)
     return df
