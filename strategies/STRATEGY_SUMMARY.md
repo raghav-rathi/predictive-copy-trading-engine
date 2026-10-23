@@ -560,19 +560,19 @@ tests green.
 
 ## Batch 14 (2026-10-23)
 
-12 new strategies shipped, each: indicators + signals + risk config + unit
+12 strategies built, 9 shipped (elder_ray, smi_ergodic, rsi_divergence were
+built and tested but SKIPPED as duplicates - first-shipped versions from
+earlier batches kept per the duplicate rule; the branch's overwrites were
+reverted). Each shipped strategy: indicators + signals + risk config + unit
 tests + backtest on Hyperliquid 1h (BTC/ETH/HYPE, 2026-03-14 -> 2026-10-22,
 ~5,330 bars/coin). Costs: 0.045% taker + 0.01% slippage/side. Sizing: 1%
-equity risk/trade on the ATR stop, 3x leverage cap, $10k. 228 new unit
-tests green. A clean sweep of red: 12/12 losers, combined -$99,051 across
-8,975 trades.
+equity risk/trade on the ATR stop, 3x leverage cap, $10k. 176 new unit
+tests green. All 9 shipped print red: combined -$69,139 across 5,621 trades.
 
 | slug | source | result |
 |---|---|---|
-| elder_ray | Dr. Alexander Elder Bull/Bear Power vs EMA(13) | **Batch worst**: -$23,737 combined, 2,421 trades, PF 0.38-0.52. Powers oscillate around zero in chop, firing every ~6.6 bars; $13,274 in fees alone exceed half the loss |
 | ultimate_oscillator | Larry Williams UO(7/14/28), 3-step divergence method | Loser: -$798 combined, 41 trades, WR 26.8%. Divergence setups are rare (~1 per coin per fortnight) and the breakout trigger fires after the snapback is priced in; ETH 0-for-7 |
 | true_strength_index | William Blau TSI(25/13) + signal(7), zero-territory filter | Loser: -$7,855 combined, 507 trades, Sharpes -1.6 to -3.4. Double smoothing is elegant on daily bars and late on 1h: crosses confirm after the move is spent |
-| smi_ergodic | William Blau SMI Ergodic(5/20) + signal(5), +/-40 zones | Loser: -$4,627 combined, 245 trades. The oversold hook is a falling-knife catch: longs win 21-25% everywhere; only green sub-leg is ETH shorts, noise |
 | wave_trend | LazyBear WaveTrend(10/21), cross-in-zone +/-53 | Loser: -$5,656 combined, 430 trades. Loses gross of fees (~-$1,720 ex-fees): the +/-53 lines fire late into exhausted moves on 1h crypto |
 | fair_value_gap | ICT/SMC 3-candle imbalance retest, 1.5xATR displacement | Loser: -$5,440 combined, 486 trades. The displacement filter is far too weak on 1h: zones active 53-61% of bars, so "imbalances" are ordinary volatility; 64-75% die on the 2xATR stop |
 | pin_bar_reversal | Pring pin bar (2/3 tail) at 5-bar swing extremes | Loser: -$10,378 combined, 579 trades, PF 0.72. Violent 1h wicks read as stop-hunts/continuation, not absorption; 35% win rate can't clear a 2R break-even |
@@ -580,19 +580,20 @@ tests green. A clean sweep of red: 12/12 losers, combined -$99,051 across
 | engulfing_pattern | Body-engulf + EMA(20) trend alignment, act on close | Loser: -$13,431 combined, 1,325 trades, PF 0.54-0.91. Negative gross before costs (BTC Sharpe -5.57): the EMA trend filter admits everything the raw pattern fires, and the canon's location half (structure/S&R) is missing |
 | breakout_retest | 20-bar range breakout, clean throwback retest, 20-bar window | Loser: -$8,578 combined, 556 trades, PF 0.68-0.87. The 1.0xATR stop takes ~64% of trades; the level-loss signal exit fires only ~7% - retests that hold are the minority |
 | vwap_cross | Rolling 24-bar VWAP cross + slope + 1.2x volume | Loser: -$2,928 combined, 226 trades. Slope/volume filters are nearly always satisfied on 1h bars, so it behaves like a bare VWAP cross - a whipsaw machine; shorts bleed hardest |
-| rsi_divergence | RSI(14) regular + hidden divergence on confirmed 3/3 pivots | Loser: -$1,548 combined, 688 trades, expectancy -$2.25. The textbook pattern mechanized on every 3-bar fractal fires ~1.3 signals/day of minor RSI wiggles; the 3-bar confirmation lag surrenders the reversal's best part |
 
 ## Empirical direction
 
-The honest-loser streak holds for a tenth batch - and batch 14 is the
-first perfect sweep: 12/12 print red combined, -$99,051 across 8,975
-trades, with elder_ray (-$23,737) the batch worst. The through-line now
-spans indicator families and the price-action canon alike: classic
-oscillators (TSI, SMI Ergodic, WaveTrend, UO) lose because their
-daily-bar tuning is late on 1h crypto, and the discretionary price-action
-patterns (pin bars, engulfings, inside bars, FVGs, throwbacks, RSI
-divergence) lose because their edge lives in location and selectivity -
-swing structure, support/resistance, confirmed exhaustion - which the
-mechanized 1h versions replace with frequency. Nothing here is anywhere
-near a live gate. Per-coin detail lives in each strategy's BACKTEST.md /
-CALIBRATION.md.
+The honest-loser streak holds for a tenth batch: all 9 shipped strategies
+print red combined, -$69,139 across 5,621 trades, with inside_bar_breakout
+(-$14,075) the worst of the shipped set. Three more (elder_ray, smi_ergodic,
+rsi_divergence) were built and tested in this batch but skipped as
+duplicates of first-shipped versions - and notably, all three duplicates
+were ALSO losers in their original form, which is its own kind of
+replication. The through-line now spans indicator families and the
+price-action canon alike: classic oscillators (TSI, WaveTrend, UO) lose
+because their daily-bar tuning is late on 1h crypto, and the discretionary
+price-action patterns (pin bars, engulfings, inside bars, FVGs, throwbacks)
+lose because their edge lives in location and selectivity - swing structure,
+support/resistance, confirmed exhaustion - which the mechanized 1h versions
+replace with frequency. Nothing here is anywhere near a live gate.
+Per-coin detail lives in each strategy's BACKTEST.md / CALIBRATION.md.
