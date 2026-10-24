@@ -597,3 +597,44 @@ lose because their edge lives in location and selectivity - swing structure,
 support/resistance, confirmed exhaustion - which the mechanized 1h versions
 replace with frequency. Nothing here is anywhere near a live gate.
 Per-coin detail lives in each strategy's BACKTEST.md / CALIBRATION.md.
+
+## Batch 15 (2026-10-24)
+
+12 new strategies shipped, each: indicators + signals + risk config + unit
+tests + backtest on Hyperliquid 1h (BTC/ETH/HYPE, 2026-03-14 22:00 UTC ->
+2026-10-22 23:00 UTC, BTC/ETH 5,335 bars, HYPE 5,333). Costs: 0.045%
+taker + 0.01% slippage/side. Sizing: 1% equity risk/trade on the ATR stop,
+3x leverage cap, $10k. 197 new unit tests green. All 12 shipped print
+red-or-flat combined: -$111,696 across 12,842 trades.
+
+| slug | source | result |
+|---|---|---|
+| elder_safezone | Elder SafeZone (Come Into My Trading Room) + EMA22 cross | Loser: -$8,644 combined, 1,202 trades, PF 0.61-0.89. SafeZone barely filters the bare EMA cross |
+| slow_stochastic | Lane Slow Stochastic %K(14)/%D(3) in 20/80 zones | Loser: -$12,184 combined, 940 trades, PF 0.44-0.68. Zone crosses whipsaw |
+| cci_extreme | Lambert CCI(20) cross back through +/-100 | Loser: -$5,766 combined, 872 trades. ETH nearly flat (-$422, PF 0.96) |
+| bollinger_pctb | Bollinger %B reclaim of 0 / loss of 1, exit at 0.5 | Loser: -$8,995 combined, 741 trades. 605 of 741 trades exit on the stop |
+| keltner_squeeze | TTM-style squeeze (BB width < KC width) + band breakout | Mixed: +$900 combined, 408 trades. ETH +$2,042 only green leg; signal exit nearly decorative (12 of 408) |
+| golden_cross | SMA(50)/SMA(200) cross | Thin loser: -$1,466 combined, 95 trades. 93 of 95 exit on the stop — lagging cross confirms after the move |
+| chaikin_adl_trend | Chaikin ADL vs SMA(10) + SMA50 price gate | Loser: -$16,483 combined, 1,512 trades, PF 0.52-0.78. Loses before fees too |
+| rsi_ma_cross | RSI(14) vs SMA(14) of RSI | **Batch worst**: -$22,746 combined, 2,744 trades, PF 0.55-0.74. Near-perfect long/short symmetry is structural |
+| ehlers_instantaneous | Ehlers Instantaneous Trendline (alpha 0.07) price cross | Loser: -$22,082 combined, 2,448 trades, PF 0.55-0.69. Second-worst in batch |
+| ehlers_roofing | Ehlers Roofing Filter (48-bar HP + SuperSmoother 10) zero cross | Loser: -$13,043 combined, 1,559 trades, PF 0.62-0.90. ~71% stop exits |
+| order_block_retest | ICT/SMC order-block retest after >=1.5xATR displacement | Mild loser: -$1,146 combined, 288 trades. ETH -$35 is flat; no edge shown |
+| abcd_pattern | ABCD harmonic (BC 38.2-88.6%, CD 127.2-161.8%, \|CD\|~= \|AB\|) | Inconclusive: -$41 combined on 33 trades. HYPE +$717 on 11 trades is noise |
+
+## Empirical direction
+
+The honest-loser streak holds for an eleventh batch: 10 of 12 lose
+outright, keltner_squeeze is a +$900 mixed print carried by one ETH leg,
+and abcd_pattern's 33 trades say nothing. The batch's through-line is
+the cross trap in both directions: fast crosses (RSI-vs-its-average,
+Instantaneous Trendline, Roofing zero-line, ADL-vs-average) fire
+2,000+ times and donate to fees, while slow crosses (golden cross,
+ABCD) confirm after the move or almost never fire. SafeZone is the
+batch's cautionary filter: a respected exit discipline barely changes
+the bare EMA cross it is supposed to protect (-$8,644 vs the same
+churn). The SMC half repeats batch 14: order blocks retest into
+continuation as often as reversal, and harmonic completeness at 1h
+granularity is a museum piece (33 completions in 7 months). Nothing
+here is anywhere near a live gate. Per-coin detail lives in each
+strategy's BACKTEST.md / CALIBRATION.md.
