@@ -638,3 +638,50 @@ continuation as often as reversal, and harmonic completeness at 1h
 granularity is a museum piece (33 completions in 7 months). Nothing
 here is anywhere near a live gate. Per-coin detail lives in each
 strategy's BACKTEST.md / CALIBRATION.md.
+
+## Batch 16 (2026-10-25)
+
+12 new strategies shipped, each: indicators + signals + risk config + unit
+tests + backtest on Hyperliquid 1h (BTC/ETH/HYPE, 2026-03-14 22:00 UTC →
+2026-10-25 00:00 UTC, BTC/ETH 5,379 bars, HYPE 5,377). Costs: 0.045%
+taker + 0.01% slippage/side. Sizing: 1% equity risk/trade on the ATR stop,
+3x leverage cap, $10k. 87 new unit tests green. Combined -$60,971 across
+10,590 trades — a number dominated by two structural failures (see below).
+
+| slug | source | result |
+|---|---|---|
+| ema_cross | EMA(9)/EMA(21) crossover (Murphy) | Loser: -$2,054 combined, 729 trades, PF 0.78-1.11. HYPE +$1,147 only green leg |
+| sma_cross | SMA(20)/SMA(50) crossover (Murphy) | Loser: -$2,412 combined, 375 trades, PF 0.70-1.06. 94% stop exits — slower is later, not better |
+| atr_channel | SMA(20) +/- 1.5xATR(14) breakout | Loser: -$1,839 combined, 639 trades, PF 0.74-1.18. HYPE +$1,943 only green leg |
+| envelope_trend | SMA(20) +/- 5% envelope breakout | Green but thin: +$1,524 combined, 48 trades. HYPE +$1,209 (PF 1.93) is the only leg with weight; BTC 3 trades |
+| classic_pivots | Floor-trader PP/R1/S1 from prior bar | **Batch worst, structural**: -$27,883 combined, 4,476 trades, PF 0.44-0.54, drawdowns 90-97% on every coin. One-bar levels break every 3-4 bars |
+| double_top_bottom | Double top/bottom, 5-bar zigzag, 1.5% tolerance | Loser: -$1,186 combined, 64 trades, PF 0.44-2.29. BTC -$1,207 does all the damage; ETH/HYPE thin |
+| head_shoulders | H&S / inverse H&S, 3% shoulder tolerance | Flat: +$458 combined, 60 trades. ETH +$558 (PF 1.97) is the best small pattern leg; BTC +$36 is noise |
+| triangle_breakout | Ascending/descending triangles, 1% flat side | Green but thin: +$905 combined, 81 trades. ETH +$713 (PF 2.45) on 20 trades is interesting, not significant |
+| wedge_breakout | Rising/falling wedges, two-pivot trendlines | Loser: -$3,174 combined, 495 trades, PF 0.61-1.27. Two-pivot trendlines converge constantly on noisy 1h data |
+| flag_pattern | Flag: >=3xATR pole + tight consolidation + breakout | Loser: -$1,500 combined, 68 trades, PF 0.29-2.74. ETH 13.6% win is the batch's worst leg |
+| swing_sr_bounce | Swing S/R bounce, 2+ touches within 0.5% | **Second structural failure**: -$25,365 combined, 3,311 trades, PF 0.46-0.59, drawdowns 78-94% on every coin. Two-touch levels break more than they hold |
+| macd_divergence | MACD histogram divergence (Appel/Aspray) | **Batch best**: +$1,557 combined, 244 trades. HYPE +$3,383 (42.9% win, PF 1.91, Sharpe 2.70) carries it; BTC -$1,729, ETH flat |
+
+## Empirical direction
+
+The honest-loser streak extends, but batch 16 splits into two distinct
+stories. Story one is the two structural failures: classic_pivots and
+swing_sr_bounce together lose -$53,248 — 87% of the batch's combined
+loss — on 7,787 trades, because both build "levels" out of almost no
+information (one bar's range, two touches) and then trade every touch
+of them. Levels need memory to mean anything; without it they are just
+lines price crosses constantly, and the failure exits turn the account
+into a fee pump. Neither is tunable — both need a different level
+definition to be a different strategy, and the prior for that working
+is low. Story two is the rest: the crossover/channel family keeps
+losing the same way (fast crosses churn, slow crosses confirm late),
+the chart patterns split between thin greens (envelope, triangle,
+head & shoulders — all under 100 trades, none significant) and
+ordinary losers (double tops, wedges, flags), and exactly one
+strategy earns a follow-up: macd_divergence, whose HYPE leg (+$3,383,
+PF 1.91) is the strongest single leg in the batch. The follow-up is a
+longer window or more coins for macd_divergence only — everything
+else in this batch is either dead or too thin to matter. Nothing here
+is anywhere near a live gate. Per-coin detail lives in each strategy's
+BACKTEST.md / CALIBRATION.md.
