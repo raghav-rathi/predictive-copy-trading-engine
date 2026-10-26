@@ -685,3 +685,39 @@ longer window or more coins for macd_divergence only — everything
 else in this batch is either dead or too thin to matter. Nothing here
 is anywhere near a live gate. Per-coin detail lives in each strategy's
 BACKTEST.md / CALIBRATION.md.
+
+## Batch 17 — 2026-10-26 (12 strategies, Hyperliquid 1h BTC/ETH/HYPE, 2026-03-14 → 2026-10-25, $10k, 0.045% fee + 0.01% slip/side, funding off)
+
+| Slug | Mechanism | Result |
+|---|---|---|
+| roc_momentum | ROC(12) zero-cross | Loser: -$14,293 combined, 2,237 trades, PF 0.59-0.89 |
+| volatility_breakout | Williams prior-close +/- 0.5x prior range | Structural loser: -$24,013 combined, 3,499 trades, PF 0.52-0.64 |
+| volume_spike_breakout | 20-bar breakout + volume >2x avg | Near-flat loser: -$354 combined, 443 trades; ETH/HYPE green, BTC drags under |
+| volatility_contraction_pattern | Minervini VCP proxy (1h): uptrend + falling ATR + tight range + breakout on volume, long only | Thin green: +$1,170 combined, 66 trades, all three legs positive — too thin to call |
+| three_soldiers_crows | Nison three strong candles, inside opens | Thin loser: -$933 combined, 41 trades |
+| morning_evening_star | Nison star reversal (gap adapted for 24/7 crypto) | Thin green: +$1,346 combined, 29 trades, all legs positive — too few to be a finding |
+| dark_cloud_piercing | Nison dark cloud / piercing (gap adapted) | Loser: -$5,675 combined, 428 trades, loses on every coin |
+| harami_pattern | Nison harami, small body inside large body | Loser: -$870 combined, 160 trades; ETH leg green (PF 1.99), BTC/HYPE red |
+| tweezer_pattern | Nison tweezers, equal extremes within 0.15% | Structural loser: -$23,152 combined, 4,442 trades — equal extremes are everywhere on 1h data |
+| fibonacci_extension | SMA50 trend + turn from 38.2-61.8% zone of 50-bar range | Loser: -$6,110 combined, 491 trades, win rates ~21% |
+| bollinger_band_walk | First close outside BB(20,2), exit at mid-band | Flat: +$43 combined, 626 trades |
+| supertrend_adx_filter | Supertrend flip gated by ADX(14)>25 | Loser: -$2,085 combined, 122 trades; the gate cuts trades but not losses |
+
+Batch combined: -$74,926 across 12,584 trades. 98 tests green.
+
+## Empirical direction (batch 17)
+
+Two structural failures dominate: volatility_breakout and tweezer_pattern
+together lose -$47,165 on 7,941 trades, because both fire on conditions
+that are near-constant on 1h crypto bars (every bar has a prior range to
+break; equal extremes occur constantly in a jittery market). The
+candlestick family splits the same way as before: strict textbook
+patterns either never fire in a gapless 24/7 market (the strict-gap
+star and dark-cloud versions produced exactly 0 trades and had to be
+adapted to open-beyond-prior-close) or, once adapted, lose steadily.
+The only greens are thin by construction — VCP (+$1,170, 66 trades)
+and morning star (+$1,346, 29 trades) — and neither has the trade
+count to survive a significance claim. The honest read for the batch:
+nothing here earns a follow-up window, and the candlestick lane on 1h
+crypto looks exhausted as a source of new strategies. Per-coin detail
+lives in each strategy's BACKTEST.md / CALIBRATION.md.
