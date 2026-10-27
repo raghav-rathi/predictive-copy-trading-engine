@@ -721,3 +721,44 @@ count to survive a significance claim. The honest read for the batch:
 nothing here earns a follow-up window, and the candlestick lane on 1h
 crypto looks exhausted as a source of new strategies. Per-coin detail
 lives in each strategy's BACKTEST.md / CALIBRATION.md.
+
+## Batch 18 (2026-10-27)
+
+12 new strategies shipped, each: indicators + signals + risk config + unit
+tests + backtest on Hyperliquid 1h (BTC/ETH/HYPE, 2026-03-14 22:00 UTC →
+2026-10-27 13:00 UTC, BTC/ETH 5,440 bars, HYPE 5,438). Costs: 0.045%
+taker + 0.01% slippage/side, funding off. Sizing: 1% equity risk/trade
+on the 2xATR stop, 3x leverage cap, $10k. 96 new unit tests green.
+Combined -$57,189 across 10,232 trades.
+
+| slug | source | result |
+|---|---|---|
+| ehlers_sinewave | Ehlers Even Better Sinewave (sine/lead-sine cross; causal lead approx) | **Batch worst**: -$22,962 combined, 4,089 trades, PF ~0.5-0.7. The cross fires ~8x/day/coin on 1h bars — cycle-mode theory drowned in whipsaw |
+| fast_stochastic | Lane Fast Stochastic %K(14)/%D(3), cross in 20/80 zones | Loser: -$10,930 combined, 1,078 trades. Removing %K smoothing makes slow_stochastic's failure worse, not better |
+| bollinger_bandwidth | BB(20,2) bandwidth expansion breakout, exit at mid-band | Loser: -$2,539 combined, 333 trades. Expansion filter does not save the band breakout; HYPE +$661 only green leg |
+| rsi_trendline | RSI(14) trendline break (confirmed 3-bar pivots) | Loser: -$7,390 combined, 1,136 trades. Breaks mark pauses, not reversals |
+| elder_thermometer | Elder Market Thermometer (range < 60% of 20-bar avg + trend-side close) | Loser: -$10,114 combined, 841 trades. Quiet prints are continuation pauses as often as reversals |
+| volume_oscillator | Volume Oscillator (5/10) zero-cross + SMA20 trend filter | Flat: +$10 combined, 846 trades, expectancy $0.01/trade. No directional edge at 1h |
+| relative_momentum_index | Altman RMI(20,5), 50-midline cross; RMI(14,1)==RSI asserted in tests | Flat: +$346 combined, 670 trades. Smoother RSI, same non-edge |
+| hammer_pattern | Nison hammer / shooting star (trend + body-position rules) | Loser: -$2,191 combined, 427 trades. Stricter than pin_bar_reversal, same outcome |
+| doji_reversal | Nison doji at 10-bar extreme after 3-bar trend | Loser: -$648 combined, 398 trades. ETH +$2,201 (Sharpe 1.81) is the batch's best leg, BTC drags it under |
+| marubozu_breakout | Nison marubozu (body >= 90% of range) conviction candle | Loser: -$1,138 combined, 399 trades. Conviction candles continue as often as they reverse |
+| three_methods_pattern | Nison rising/falling three methods (5-bar containment) | Inconclusive: +$452 on 13 trades. Too strict to evaluate on 1h |
+| bat_pattern | Carney Bat (2001): AB 38.2-50%, CD 161.8-261.8%, AD 88.6% ±6% | Inconclusive: -$86 on 2 trades (0 on HYPE). Harmonic completeness is a daily-chart property, as with Gartley |
+
+## Empirical direction (batch 18)
+
+The honest-loser streak holds for a twelfth batch: 8 of 12 lose
+outright, 2 are flat to the dollar, and 2 never fire enough to judge.
+The batch's through-line is that *every* remaining classic lane now
+fails the same way: the oscillator lane (SineWave, fast stochastic,
+RSI trendline, RMI) loses on cross frequency, the candle lane
+(hammer, doji, marubozu) loses on location-without-structure, and the
+pattern lane (three methods, Bat) does not fire at all. The two flat
+prints (volume_oscillator +$10, relative_momentum_index +$346) are
+the interesting non-results: both are verified implementations
+(RMI(14,1)==RSI is a unit test) of respected mechanisms that simply
+have no edge on hourly crypto — the library's null results are now
+as well-identified as its losers. Nothing here is anywhere near a
+live gate. Per-coin detail lives in each strategy's BACKTEST.md /
+CALIBRATION.md.
