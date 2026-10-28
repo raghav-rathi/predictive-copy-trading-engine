@@ -746,6 +746,19 @@ Combined -$57,189 across 10,232 trades.
 | three_methods_pattern | Nison rising/falling three methods (5-bar containment) | Inconclusive: +$452 on 13 trades. Too strict to evaluate on 1h |
 | bat_pattern | Carney Bat (2001): AB 38.2-50%, CD 161.8-261.8%, AD 88.6% ±6% | Inconclusive: -$86 on 2 trades (0 on HYPE). Harmonic completeness is a daily-chart property, as with Gartley |
 
+| macd_zero_cross | Appel MACD(12,26,9) zero-line cross | Loser: -$1,222 combined, 572 trades. HYPE +$760 only green leg |
+| ppo_cross | Percentage Price Oscillator signal cross | Loser: -$7,752 combined, 1,221 trades. Normalising MACD by price fixes nothing |
+| keltner_rsi | Keltner breakout + RSI(14) band filter | Loser: -$5,665 combined, 660 trades, worst expectancy -$8.58/trade in its group |
+| rsi_macd_combo | RSI 50-cross + MACD histogram confluence | Loser: -$5,940 combined, 1,039 trades. ETH win rate 19.4% |
+| adx_macd_trend | ADX(14)>25 + MACD signal cross | Loser: -$3,331 combined, 188 trades. ADX filter does not save the MACD cross |
+| heikin_ashi_smoothed | Smoothed Heikin-Ashi trend flips | **Batch worst**: -$17,167 combined, 2,235 trades, fees $11,985. No flat state — chop traded continuously |
+| cypher_pattern | Carney Cypher harmonic (78.6% XC completion) | Inconclusive: -$167 on 8 trades. Tolerances not loosened; pattern barely occurs at 1h |
+| pennant_pattern | Pennant pole + converging-range breakout | Flat-to-loser: -$159 on 24 trades. Thin sample, HYPE leg -$326 |
+| rectangle_breakout | Rectangle range breakout + volume confirm | Loser: -$1,266 combined, 229 trades. ETH +$1,004 only green leg |
+| triple_top_bottom | Triple top/bottom neckline break | Loser: -$1,006 combined, 130 trades. Loses on all three coins |
+| diamond_pattern | Diamond expand-then-contract breakout | Loser: -$376 combined, 97 trades. Smallest loss; ETH +$934 (PF 1.57) vs HYPE -$1,161 |
+| cci_divergence | Lambert CCI(20) pivot divergence | Loser: -$962 combined, 156 trades. ETH/HYPE green, BTC -$1,908 drags it under |
+
 ## Empirical direction (batch 18)
 
 The honest-loser streak holds for a twelfth batch: 8 of 12 lose
@@ -762,3 +775,22 @@ have no edge on hourly crypto — the library's null results are now
 as well-identified as its losers. Nothing here is anywhere near a
 live gate. Per-coin detail lives in each strategy's BACKTEST.md /
 CALIBRATION.md.
+
+## Empirical direction (batch 19)
+
+The honest-loser streak holds for a thirteenth batch: 10 of 12 lose
+outright, 1 is flat-to-loser on 24 trades, and 1 never fires enough
+to judge (8 trades). Combined -$45,013 across 6,559 trades; nothing
+here is anywhere near a live gate. The batch's through-line is that
+the confluence idea fails the same way the single-indicator idea
+did: adding a filter (ADX, RSI band, RSI+MACD agreement) delays
+entries into moves already underway without cutting the whipsaw —
+keltner_rsi, rsi_macd_combo and adx_macd_trend all lose on every
+coin. The pattern lane splits cleanly: the strict harmonics and
+chart patterns (Cypher, pennant) barely fire at 1h, while the ones
+that do fire (rectangle, triple top/bottom, diamond) lose small
+because their breakouts mean-revert. The batch's worst print,
+heikin_ashi_smoothed (-$17,167, fees $11,985), is a structural
+lesson: a flip-on-every-cross system with no flat state pays full
+fees through chop. Per-coin detail lives in each strategy's
+BACKTEST.md / CALIBRATION.md.
