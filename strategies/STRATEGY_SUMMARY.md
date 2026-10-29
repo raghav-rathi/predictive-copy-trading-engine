@@ -794,3 +794,46 @@ heikin_ashi_smoothed (-$17,167, fees $11,985), is a structural
 lesson: a flip-on-every-cross system with no flat state pays full
 fees through chop. Per-coin detail lives in each strategy's
 BACKTEST.md / CALIBRATION.md.
+
+## Batch 20 — 2026-10-29 (12 strategies, Hyperliquid 1h BTC/ETH/HYPE, $10k, 0.045% fee + 0.01% slip/side, funding off)
+
+12 new strategies shipped, each: indicators + signals + risk config + unit
+tests + backtest on Hyperliquid 1h. Window: 2026-03-14 22:00 UTC →
+2026-10-28 00:00 UTC for nine strategies (BTC/ETH 5,451 bars after
+dedup, HYPE 5,449); the three builder-C strategies (ema_triple_cross,
+relative_strength_breakout, abandoned_baby_pattern) were run before a
+mid-batch cache extension and cover → 2026-10-27 13:00 UTC (BTC/ETH
+5,445 bars, HYPE 5,443). Costs: 0.045% taker + 0.01% slippage/side.
+Sizing: 1% equity risk/trade, 3x leverage cap, $10k. 118 new unit tests
+green. Combined -$66,502 across 6,963 trades.
+
+| slug | source | result |
+|---|---|---|
+| macd_bollinger | Bollinger Bands on the MACD line (Carter-style band-edge / squeeze release) | Loser: -$5,711 combined, 417 trades. Loses on all three coins |
+| cci_zero_cross | Lambert CCI(20) zero-line cross + SMA(50) trend filter | Loser: -$9,926 combined, 920 trades. Worst leg BTC -$4,217 |
+| macd_histogram_reversal | Elder MACD-histogram slope-flip (histogram tick reversal) | **Batch worst**: -$18,600 combined, 1,844 trades. Fires on nearly every local wiggle |
+| rsi_failure_swing | Cardwell RSI failure swings (RSI breaks its own prior swing) | Loser: -$2,310 combined, 100 trades. 94/100 exits are stops |
+| stochastic_pop | Raschke Stochastic Pop (fast-%K cross + 20-bar breakout) | Loser: -$2,189 combined, 373 trades. Fees $3,946 exceed the loss — churn, not edge |
+| keltner_pullback | Keltner midline pullback in an EMA50 trend | Loser: -$11,461 combined, 1,253 trades. 865/1,253 exits are opposite-cross whipsaws |
+| ema_triple_cross | 3-EMA (3/8/21) stack alignment | Loser: -$11,917 combined, 1,451 trades. Exit churns on EMA wobble (971 signal exits) |
+| relative_strength_breakout | Coin/BTC ratio-line breakout of prior 20-bar range | Loser: -$3,610 combined, 531 traded-leg trades. BTC is the benchmark (0 trades, excluded) |
+| abandoned_baby_pattern | Nison abandoned baby (gap, doji, gap reversal) | No-trade: 0 trades on all coins. 24/7 crypto has essentially no true inter-bar gaps at 1h — untradeable as specified |
+| kicker_pattern | Nison kicker (gap + strong opposite candle) | No evidence: -$76 on 5 trades. Textbook gap test nearly impossible at 1h |
+| tasuki_gap_pattern | Nison tasuki gap continuation (adapted retracement bound — see BACKTEST.md) | Mildly green, not a win: +$238 on 42 trades, 39/42 exits are stops. Literal textbook rule fires 0 times in ~16,300 bars |
+| counterattack_lines | Nison counterattack lines (close within 0.2xATR of prior close) | Loser: -$940 combined, 27 trades. BTC 0-for-8; a stalemate candle reads as a pause, not a turn |
+
+## Empirical direction (batch 20)
+
+The honest-loser streak holds for a fourteenth batch: 9 of 12 lose
+outright, 1 is mildly green on noise (tasuki +$238 on $30k), and 2
+never fire enough to judge (abandoned baby 0 trades, kicker 5).
+Combined -$66,502 across 6,963 trades; nothing here is anywhere near
+a live gate. The batch's through-line is that the candle-pattern lane
+hits a structural wall on 24/7 hourly crypto: the textbook patterns
+that assume an overnight close (abandoned baby, kicker, literal
+tasuki) barely occur, and the adapted tasuki that does fire still
+loses on stops. The oscillator lane keeps failing on frequency:
+histogram reversal (1,844 trades) and EMA-stack flips (1,451) pay
+their edge away in fees and whipsaw exits, and the pullback lane
+(keltner_pullback) whipsaws on the opposite cross 69% of the time.
+Per-coin detail lives in each strategy's BACKTEST.md / CALIBRATION.md.
