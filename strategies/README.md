@@ -65,3 +65,26 @@ candle_patterns) and the negative-skew liquidity_sweep (54-56% WR, −15%
 to −24% net).
 
 No shared infra changes in this batch.
+
+---
+
+# Batch 20 (2026-10-29) — oscillator crosses, pullbacks, ratio breakout, candle patterns
+
+Twelve more signal engines on `feat/strat-iter-20261029-batch20`: `macd_bollinger`
+(Bollinger on MACD), `cci_zero_cross` (CCI zero-line + trend filter),
+`macd_histogram_reversal` (Elder histogram slope flips), `rsi_failure_swing`
+(Cardwell failure swings), `stochastic_pop` (Raschke pop + breakout),
+`keltner_pullback` (Keltner midline pullback), `ema_triple_cross` (3/8/21 EMA
+stack), `relative_strength_breakout` (coin/BTC ratio-line breakout),
+`abandoned_baby_pattern`, `kicker_pattern`, `tasuki_gap_pattern`,
+`counterattack_lines` (Nison candle patterns). Same subpackage layout; 118 new
+unit tests green. Backtests on Hyperliquid 1h candles (BTC/ETH/HYPE,
+2026-03-14 → 2026-10-28, with the three builder-C strategies run to
+2026-10-27 13:00 UTC before a mid-batch cache extension): combined -$66,502
+across 6,963 trades — 9 losers, 1 mildly-green noise print (tasuki +$238 on
+42 trades), 2 no-evidence patterns (abandoned baby 0 trades, kicker 5).
+The candle-pattern lane hits a structural wall on 24/7 hourly crypto: textbook
+gap patterns assume an overnight close that does not exist here. Honest
+losers recorded in each BACKTEST.md.
+
+No shared infra changes in this batch.
