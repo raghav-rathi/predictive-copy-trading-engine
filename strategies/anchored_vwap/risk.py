@@ -1,19 +1,28 @@
-"""Anchored VWAP risk config — reclaims get a hard 2xATR stop (a failed
-reclaim is immediately wrong), a wide 3xATR chandelier trail to ride the
-leg the line identifies, no fixed target, 72-bar max hold."""
+"""Anchored VWAP risk config.
+
+Trend-following AVWAP crosses get the house-standard leash:
+2xATR stop, 2.5xATR trail, no fixed target (the opposite
+cross manages the trade), 120-bar (5-day) max hold.
+Long/short symmetric.
+"""
 
 from strategies.base import RiskConfig
 
 RISK = RiskConfig(
     atr_window=14,
     stop_atr_mult=2.0,
-    trail_atr_mult=3.0,
+    trail_atr_mult=2.5,
     target_atr_mult=None,
-    max_hold_bars=72,
+    max_hold_bars=120,
     risk_frac=0.01,
     max_leverage=3.0,
+    fee_rate=0.00045,
+    slippage_rate=0.0001,
     allow_longs=True,
     allow_shorts=True,
 )
 
-WARMUP = 120
+# 20-bar centred pivot (10 each side) needs 21 bars before the
+# first pivot can confirm, plus ATR(14) and the 5-bar rise
+# check, plus margin.
+WARMUP = 30
