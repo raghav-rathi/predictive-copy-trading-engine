@@ -1,54 +1,32 @@
 # Anchored VWAP — Calibration
 
-Sweep on the same Hyperliquid 1h data as BACKTEST.md (BTC/ETH/HYPE,
-2026-03-14 → 2026-10-15, same costs/sizing). Two parameters: the
-reclaim filter strictness (bars below the line in the 10-bar window)
-and the fractal anchor half-width (15/25/40 bars). Throwaway sweep
-script: `/tmp/batch7_calibrate.py` (results in `/tmp/batch7_calib.json`).
+All parameters fixed a priori from the anchored-VWAP
+definition in the batch brief. No in-sample sweep, nothing
+selected on the backtest window's PnL.
 
-| Variant | Coin | Trades | Net $ | Sharpe |
-|---|---|---|---|---|
-| shipped reclaim2/half25 | BTC | 72 | −$2,291 | −2.94 |
-| shipped reclaim2/half25 | ETH | 67 | −$1,422 | −1.44 |
-| shipped reclaim2/half25 | HYPE | 59 | +$1,773 | +1.69 |
-| reclaim1/half15 | BTC | 108 | −$1,892 | −1.64 |
-| reclaim1/half15 | ETH | 104 | −$1,472 | −1.23 |
-| reclaim1/half15 | HYPE | 82 | +$531 | +0.65 |
-| reclaim1/half25 | BTC | 87 | −$2,457 | −2.83 |
-| reclaim1/half25 | ETH | 76 | −$1,714 | −1.73 |
-| reclaim1/half25 | HYPE | 70 | +$395 | +0.59 |
-| reclaim1/half40 | BTC | 65 | −$1,804 | −2.34 |
-| reclaim1/half40 | ETH | 66 | −$1,461 | −1.75 |
-| reclaim1/half40 | HYPE | 58 | +$2,987 | +2.51 |
-| reclaim2/half15 | BTC | 93 | −$1,802 | −1.70 |
-| reclaim2/half15 | ETH | 93 | −$1,016 | −0.82 |
-| reclaim2/half15 | HYPE | 72 | +$311 | +0.48 |
-| reclaim2/half40 | BTC | 56 | −$1,295 | −1.69 |
-| reclaim2/half40 | ETH | 56 | −$1,295 | −1.69 |
-| reclaim2/half40 | HYPE | 52 | +$3,617 | +2.90 |
-| reclaim4/half15 | BTC | 78 | −$1,713 | −1.74 |
-| reclaim4/half15 | ETH | 75 | −$722 | −0.61 |
-| reclaim4/half15 | HYPE | 54 | +$292 | +0.49 |
-| reclaim4/half40 | BTC | 40 | −$1,249 | −1.93 |
-| reclaim4/half40 | ETH | 40 | −$785 | −1.13 |
-| reclaim4/half40 | HYPE | 35 | −$721 | −1.17 |
+| Parameter | Value | Rationale |
+|---|---|---|
+| Pivot window | 20 bars centred (10 each side) | the brief's "20-bar swing pivot"; a centred window is the standard swing definition |
+| Pivot activation | at bar j + 10 | the right-hand window must be observed before the pivot counts; otherwise the series would look ahead |
+| Pre-confirmation fallback | VWAP from bar 0 | keeps the series defined (no NaN) before the first pivot confirms |
+| Long entry | close crosses above swing-low AVWAP, AVWAP rising vs 5 bars ago | reclaim of the post-low cost basis with upward slope confirmation |
+| Short entry | mirror at the swing-high AVWAP, falling vs 5 bars ago | loss of the post-high cost basis with downward slope confirmation |
+| Exit | opposite cross of the same AVWAP | the thesis (price on the profitable side of the anchor cohort's cost) is gone |
+| ATR window | 14 | canonical |
+| Stop / trail | 2xATR / 2.5xATR | house standard |
+| Target | none | the opposite cross manages the trade |
+| Max hold | 120 bars (~5 days) | backstop; signal exits dominate in practice |
+| Risk | 1% / trade, 3x leverage cap | house standard |
 
-## One-line verdicts
+**Why the activation delay matters:** a pivot bar's AVWAP
+value is only meaningful once the pivot is confirmed, 10
+bars later, by which time price has typically moved well
+away from the anchor's typical price. The shipped rule does
+not paper over this — it waits for confirmation and takes
+the crosses that actually occur afterwards, which is part of
+why the trade count (525) is high yet the win rate is low:
+many of those crosses are late reclaims inside choppy
+retraces rather than fresh trend legs.
 
-- **Reclaim filter (1 vs 2 vs 4):** 1 is too loose (108 BTC trades,
-  churn without edge); 4 is too strict (starves HYPE of its winners —
-  reclaim4/half40 even loses on HYPE). 2 is the sweet spot.
-- **Anchor half-width (15 vs 25 vs 40):** wider anchors win on HYPE
-  in every reclaim setting — half40 roughly doubles the HYPE print
-  (+$3,617, Sharpe 2.90 at reclaim2/half40). The edge lives in major
-  swings; minor-swing anchors get run over.
-- **The BTC/ETH problem:** every variant loses on both majors. This
-  is a coin property, not a parameter problem — anchored-VWAP reclaims
-  work where trends follow through (HYPE 2026), not in range-bound
-  majors.
-- **Verdict:** shipped config (reclaim2/half25, the documented 51-bar
-  fractal) stands as the spec-compliant baseline. reclaim2/half40 is
-  the HYPE-only promotion candidate — best print in the sweep, fewer
-  trades (52), cleaner anchors — but it needs walk-forward validation
-  before it replaces anything, since its advantage is concentrated in
-  one coin's trend regime.
+**Verdict: loser.** -$5,543 combined over 525 trades
+(19.8% win rate). Do not trade this as shipped.
