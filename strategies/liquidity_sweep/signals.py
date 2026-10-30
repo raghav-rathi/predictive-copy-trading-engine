@@ -1,30 +1,47 @@
-"""Liquidity-sweep reversal signals.
+"""Liquidity sweep signals.
 
-short_entry = sweep of buy-side liquidity (wick above the pool high,
-              close back inside): fade the stop hunt
-long_entry  = sweep of sell-side liquidity (wick below the pool low,
-              close back inside)
-long_exit   = opposite sweep OR the pool high breaks on a CLOSE
-              (invalidation: it was a breakout, not a sweep)
-short_exit  = opposite sweep OR the pool low breaks on a CLOSE
-Execution next-bar-open per the harness contract; the harness hard stop
-sits beyond the sweep extreme.
+    long_entry  -- reclaimed low sweep (sweep_dir == +1) while flat
+    short_entry -- reclaimed high sweep (sweep_dir == -1) while flat
+    long_exit   -- opposite sweep signal (sweep_dir == -1) while long
+    short_exit  -- opposite sweep signal (sweep_dir == +1) while short
+
+The risk layer's trailing stop is the other exit path.
+Boolean columns, no NaN, no lookahead (sweep_dir is causal).
 """
 
+import numpy as np
 import pandas as pd
 
 
 def add_signals(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
-    su, sd = df["sweep_up"], df["sweep_dn"]
-    ph, pl = df["pool_high"], df["pool_low"]
-    df["long_entry"] = sd.fillna(False)
-    df["short_entry"] = su.fillna(False)
-    # breakout-close invalidation of the faded level
-    long_invalid = (df["c"] > ph).fillna(False)
-    short_invalid = (df["c"] < pl).fillna(False)
-    df["long_exit"] = (su | long_invalid).fillna(False)
-    df["short_exit"] = (sd | short_invalid).fillna(False)
-    for col in ("long_entry", "short_entry", "long_exit", "short_exit"):
-        df[col] = df[col].astype(bool)
+    n = len(df)
+    d = df["sweep_dir"].to_numpy(dtype=int)
+
+    le = np.zeros(n, dtype=bool)
+    se = np.zeros(n, dtype=bool)
+    lx = np.zeros(n, dtype=bool)
+    sx = np.zeros(n, dtype=bool)
+
+    pos = None
+    for i in range(n):
+        di = int(d[i])
+        if pos == "long" and di == -1:
+            lx[i] = True
+            pos = None
+        elif pos == "short" and di == 1:
+            sx[i] = True
+            pos = None
+        if pos is None:
+            if di == 1:
+                le[i] = True
+                pos = "long"
+            elif di == -1:
+                se[i] = True
+                pos = "short"
+
+    df["long_entry"] = le
+    df["short_entry"] = se
+    df["long_exit"] = lx
+    df["short_exit"] = sx
     return df
