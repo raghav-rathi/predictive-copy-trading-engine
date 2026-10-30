@@ -1,4 +1,4 @@
-"""Liquidity-sweep engine: registration + re-exports."""
+"""Liquidity sweep: registration + re-exports."""
 
 from strategies.liquidity_sweep import indicators, risk, signals
 from strategies.base import StrategySpec
@@ -6,16 +6,20 @@ from strategies.registry import register
 
 SPEC = register(
     StrategySpec(
-        name="ICT liquidity-sweep (stop-hunt) reversal system",
+        name="Liquidity Sweep",
         slug="liquidity_sweep",
         description=(
-            "Wick through the 20-bar swing extreme by >0.25 ATR with a "
-            "close back inside: short the buy-side sweep, long the "
-            "sell-side sweep; exit on the opposite sweep or a closing "
-            "break of the level."
+            "Liquidity sweep + reclaim (Smart Money concept): "
+            "a bar whose low wicks below the prior 20-bar swing "
+            "low (or high above the prior 20-bar swing high) "
+            "but closes back inside the range. Long on a "
+            "reclaimed low sweep on the sweep bar or the next "
+            "bar; short mirrored. Exit on the opposite sweep "
+            "signal or the risk layer's trail. 2xATR stop, "
+            "2.5xATR trail, 120-bar max hold."
         ),
-        source_name="ICT / SMC — Liquidity Sweep reversal mechanics",
-        source_url="https://liquidityscan.io/blog/liquidity-sweep-then-structure-shift-the-stop-hunt-to-reversal-sequence",
+        source_name="Trading Liquidity Sweeps Like a Pro (International Trading Institute)",
+        source_url="https://internationaltradinginstitute.com/blog/liquidity-sweeps-entry-exit-strategies/",
         warmup_bars=risk.WARMUP,
         add_indicators=indicators.add_indicators,
         add_signals=signals.add_signals,
