@@ -1,23 +1,31 @@
-"""Anchored VWAP indicators (Shannon).
+"""Anchored VWAP indicators (causal, no lookahead).
 
-Idea in plain terms: a volume-weighted average price that restarts at the
-most recent major swing extreme, instead of resetting every calendar day.
-The swing extreme is the point the big participants would have defended,
-so price reclaiming that line with the line itself rising is treated as
-an institutional bid returning.
+VWAP anchored (reset) at the most recent confirmed 20-bar
+swing pivot, one series per pivot type:
 
-Mechanics:
-  - 51-bar fractal: bar j is a swing low when l[j] is the minimum of
-    l[j-25..j+25] (swing high mirrors this with h). The extreme is only
-    *confirmed* at bar j+25, and the anchor is used from that bar on.
-  - AVWAP from anchor a to bar i: sum(typical*v)[a..i] / sum(v)[a..i],
-    computed in O(n) via cumulative sums. typical = (h+l+c)/3.
-  - Two anchors are tracked (bull = most recent confirmed swing low,
-    bear = most recent confirmed swing high); the *active* anchor is
-    whichever was confirmed most recently.
+    avwap_low  -- VWAP cumulated from the most recent swing-low
+                  pivot bar (typical price * volume / volume).
+    avwap_high -- VWAP cumulated from the most recent swing-high
+                  pivot bar.
 
-No lookahead: every value at bar i uses only bars <= i; the 25-bar
-confirmation lag is explicit and tested.
+A bar j is a swing-high pivot when its high is the maximum
+high over the 20-bar window centred on j (10 bars each side);
+a swing-low pivot is the mirror with the minimum low. The
+pivot is only *activated* at bar j + 10, once its right-hand
+window is fully observed, so no AVWAP value at bar i ever
+uses data beyond bar i. Before any pivot is confirmed the
+series fall back to a VWAP cumulated from bar 0, so the
+columns contain no NaN at all. Activation recomputes the
+cumulative sums from the pivot bar through the activation
+bar — all bars <= the activation bar — which keeps the
+series truncation-safe: appending a future bar never changes
+an earlier AVWAP value.
+
+Columns:
+    avwap_low, avwap_high -- anchored VWAP series
+    avwap_low_rising     -- avwap_low above its value 5 bars ago
+    avwap_high_falling   -- avwap_high below its value 5 bars ago
+    atr                  -- Wilder ATR(14) for the risk layer
 """
 
 import numpy as np
@@ -25,79 +33,78 @@ import pandas as pd
 
 from strategies import base as B
 
-FRACTAL_HALF = 25  # swing window half-length -> 51-bar fractal
+LEFT = 10
+RIGHT = 10
+RISE_BARS = 5
+
+
+def _avwap_series(tp, v, anchors):
+    """Cumulate tp*v / v from each anchor; anchors[i] is the
+    anchor bar in force at bar i (or None for bar 0 fallback
+    handled by the caller passing anchor 0)."""
+    n = len(tp)
+    out = np.full(n, np.nan)
+    cur_anchor = None
+    cum_pv = 0.0
+    cum_v = 0.0
+    for i in range(n):
+        a = anchors[i]
+        if a is not None and a != cur_anchor:
+            # (Re)start cumulation at the anchor bar, summing
+            # through the current bar — all bars <= i.
+            cur_anchor = a
+            seg_v = v[a:i + 1]
+            seg_pv = tp[a:i + 1] * seg_v
+            cum_v = float(seg_v.sum())
+            cum_pv = float(seg_pv.sum())
+        elif cur_anchor is None:
+            cur_anchor = 0
+            cum_v = float(v[i])
+            cum_pv = float(tp[i] * v[i])
+        else:
+            cum_v += float(v[i])
+            cum_pv += float(tp[i] * v[i])
+        out[i] = cum_pv / cum_v if cum_v > 0 else tp[i]
+    return out
 
 
 def add_indicators(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
-    n = len(df)
-    l = df["l"].to_numpy()
-    h = df["h"].to_numpy()
-    c = df["c"].to_numpy()
-    v = df["v"].to_numpy()
-
+    h = df["h"].to_numpy(dtype=float)
+    l = df["l"].to_numpy(dtype=float)
+    c = df["c"].to_numpy(dtype=float)
+    v = df["v"].to_numpy(dtype=float)
     tp = (h + l + c) / 3.0
-    cpv = np.cumsum(tp * v)          # cumulative price*volume
-    cv = np.cumsum(v)               # cumulative volume
+    n = len(df)
 
-    k = FRACTAL_HALF
-    win = 2 * k + 1
-    ls, hs = pd.Series(l), pd.Series(h)
-    # bar j is a swing low iff the window minimum sits at the window
-    # centre; argmin breaks ties to the first occurrence so flat runs
-    # do not manufacture anchors
-    is_low = (
-        ls.rolling(win, center=True, min_periods=win)
-        .apply(lambda w: 1.0 if np.argmin(w) == k else 0.0, raw=True)
-        .fillna(0.0)
-        .to_numpy()
-        .astype(bool)
-    )
-    is_high = (
-        hs.rolling(win, center=True, min_periods=win)
-        .apply(lambda w: 1.0 if np.argmax(w) == k else 0.0, raw=True)
-        .fillna(0.0)
-        .to_numpy()
-        .astype(bool)
-    )
-
-    avwap = np.full(n, np.nan)
-    avwap_bull = np.full(n, np.nan)
-    avwap_bear = np.full(n, np.nan)
-    anchor_idx = np.full(n, -1, dtype=np.int64)
-
-    bull_j, bear_j = -1, -1          # center bars of most recent confirmed extremes
-    bull_t, bear_t = -1, -1          # bars at which they were confirmed
-
+    # Anchor in force at each bar; None means "not yet set",
+    # which _avwap_series treats as anchor 0.
+    anchor_low = np.full(n, None, dtype=object)
+    anchor_high = np.full(n, None, dtype=object)
+    cur_low = None
+    cur_high = None
     for i in range(n):
-        j = i - k
-        if j >= 0:
-            if is_low[j]:
-                bull_j, bull_t = j, i
-            if is_high[j]:
-                bear_j, bear_t = j, i
+        j = i - RIGHT
+        if j >= LEFT:
+            # j's full centred window [j-LEFT, j+RIGHT] is
+            # fully observed exactly at bar i == j + RIGHT.
+            if h[j] >= np.max(h[j - LEFT:j + RIGHT + 1]):
+                cur_high = j
+            if l[j] <= np.min(l[j - LEFT:j + RIGHT + 1]):
+                cur_low = j
+        anchor_low[i] = cur_low
+        anchor_high[i] = cur_high
 
-        if bull_j >= 0:
-            prev = cpv[bull_j - 1] if bull_j > 0 else 0.0
-            prevv = cv[bull_j - 1] if bull_j > 0 else 0.0
-            den = cv[i] - prevv
-            avwap_bull[i] = (cpv[i] - prev) / den if den > 0 else np.nan
-        if bear_j >= 0:
-            prev = cpv[bear_j - 1] if bear_j > 0 else 0.0
-            prevv = cv[bear_j - 1] if bear_j > 0 else 0.0
-            den = cv[i] - prevv
-            avwap_bear[i] = (cpv[i] - prev) / den if den > 0 else np.nan
-
-        # active anchor = the most recently confirmed extreme
-        if bull_t >= bear_t and bull_j >= 0:
-            avwap[i] = avwap_bull[i]
-            anchor_idx[i] = bull_j
-        elif bear_j >= 0:
-            avwap[i] = avwap_bear[i]
-            anchor_idx[i] = bear_j
-
-    df["avwap"] = avwap
-    df["avwap_bull"] = avwap_bull
-    df["avwap_bear"] = avwap_bear
-    df["avwap_anchor"] = anchor_idx
+    df["avwap_low"] = _avwap_series(tp, v, anchor_low)
+    df["avwap_high"] = _avwap_series(tp, v, anchor_high)
+    low = df["avwap_low"].to_numpy(dtype=float)
+    high = df["avwap_high"].to_numpy(dtype=float)
+    rising = np.zeros(n, dtype=bool)
+    falling = np.zeros(n, dtype=bool)
+    if n > RISE_BARS:
+        rising[RISE_BARS:] = low[RISE_BARS:] > low[:-RISE_BARS]
+        falling[RISE_BARS:] = high[RISE_BARS:] < high[:-RISE_BARS]
+    df["avwap_low_rising"] = rising
+    df["avwap_high_falling"] = falling
+    df["atr"] = B.atr(df["h"], df["l"], df["c"], 14)
     return df
