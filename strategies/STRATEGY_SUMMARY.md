@@ -837,3 +837,53 @@ histogram reversal (1,844 trades) and EMA-stack flips (1,451) pay
 their edge away in fees and whipsaw exits, and the pullback lane
 (keltner_pullback) whipsaws on the opposite cross 69% of the time.
 Per-coin detail lives in each strategy's BACKTEST.md / CALIBRATION.md.
+
+## Batch 21 — 2026-10-30 (12 built, 10 merged, Hyperliquid 1h BTC/ETH/HYPE, $10k, 0.045% fee + 0.01% slip/side, funding off)
+
+12 new strategies built, each: indicators + signals + risk config + unit
+tests + backtest on Hyperliquid 1h. Window: 2026-03-14 22:00 UTC →
+2026-10-30 00:00 UTC (BTC/ETH 5,499 bars after dedup, HYPE 5,497).
+Costs: 0.045% taker + 0.01% slippage/side. Sizing: 1% equity risk/trade,
+3x leverage cap, $10k. 132 new unit tests green across the 12 builds.
+
+MERGE NOTE: anchored_vwap and liquidity_sweep already existed on main
+(first shipped in earlier windows — anchored_vwap backtested →2026-10-15,
+liquidity_sweep →2026-10-17). Per the first-shipped rule their batch-21
+builds were NOT merged; main keeps the earlier versions. The 10 merged
+strategies total 111 tests and combined -$38,957 across 6,480 trades.
+All 12 builds' backtest figures are recorded below for the record; the
+two DUPLICATE rows describe builds that were not merged.
+
+| slug | source | result |
+|---|---|---|
+| anchored_vwap | Brian Shannon anchored VWAP (pivot-anchored, Investopedia) | DUPLICATE — not merged; first-shipped version kept. Batch-21 build: -$5,543 combined, 525 trades, win rate 19.8% |
+| vwap_std_bands | Session VWAP ±1σ/2σ bands (StockCharts VWAP) | Loser: -$8,103 combined, 695 trades. Loses on all three coins despite a 48.9% win rate — losers run larger than winners |
+| order_flow_imbalance | Bar-delta footprint proxy (cumulative-delta concept, NordFX explainer) | Loser: -$10,996 combined, 1,424 trades. The OHLCV delta proxy carries no directional information at 1h |
+| structure_break_bos | Market-structure BOS/CHoCH (swing-pivot breaks) | Flat: +$283 combined, 433 trades. HYPE +$2,203 carries BTC/ETH losses — noise, not an edge |
+| liquidity_sweep | Sweep of prior 20-bar extreme + reclaim (SMC) | DUPLICATE — not merged; first-shipped version kept. Batch-21 build: -$4,761 combined, 516 trades |
+| asian_range_breakout | Asian session (00:00–08:00 UTC) range breakout | Loser: -$1,186 combined, 500 trades. ETH +$1,488 only green leg; the session edge does not survive 24/7 crypto |
+| point_and_figure | Dorsey P&F, 1% box, 3-box reversal | Loser: -$1,581 combined, 186 trades. Loses on all three coins; 174/186 exits are stops |
+| poc_migration | Rolling 50-bar volume-profile POC trend | Loser: -$10,319 combined, 1,387 trades. The rolling POC flips constantly (~1 trade per 12 bars); fees $8,946 nearly equal the loss |
+| multi_timeframe_stack | 4h EMA trend + 1h EMA(9/21) cross confluence | Mildly green, not a win: +$1,161 combined, 333 trades, profit factors 1.03–1.15, 78% of exits are stops — breakeven noise |
+| dmi_cross | Wilder +DI/-DI cross with ADX(14)>20 filter (StockCharts ADX) | Loser: -$4,709 combined, 552 trades. Loses on all three coins; 303/552 exits are stops |
+| aroon_cross | Chande Aroon(25) cross with >70 strength gate (StockCharts Aroon) | Flat: +$119 combined, 588 trades. BTC loses, ETH/HYPE small greens — no edge |
+| money_flow_index | MFI(14) oversold/overbought recovery (StockCharts MFI) | Loser: -$3,626 combined, 382 trades. Loses on all three coins, profit factor 0.77–0.80 |
+
+## Empirical direction (batch 21)
+
+The honest-loser streak holds for a fifteenth batch: of the 10 merged
+strategies, 7 lose outright and 3 are flat-to-noise (structure_break_bos
++$283, aroon_cross +$119, multi_timeframe_stack +$1,161 on $30k); none is
+anywhere near a live gate. The batch's through-line is that the
+volume/structure lane fails the same way the oscillator and candle lanes
+did: VWAP bands lose on every coin, the bar-delta order-flow proxy is a
+heavy loser, and the rolling-POC trend overtrades itself into fees. The
+multi-timeframe idea (4h trend gating 1h entries) is the batch's only
+mildly green merged print and still cannot clear breakeven once stops
+dominate 78% of exits. A process note: the local worktree was stale
+relative to main (missing ~50 strategy dirs already on main), which is
+how anchored_vwap and liquidity_sweep were rebuilt as duplicates; future
+batches must diff candidate slugs against main's tree, not just the
+worktree listing. Per-coin detail lives in each strategy's BACKTEST.md /
+CALIBRATION.md (merged strategies only; the two duplicate builds' docs
+live on the unmerged batch branch).
