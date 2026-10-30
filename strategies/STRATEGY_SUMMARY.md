@@ -837,3 +837,47 @@ histogram reversal (1,844 trades) and EMA-stack flips (1,451) pay
 their edge away in fees and whipsaw exits, and the pullback lane
 (keltner_pullback) whipsaws on the opposite cross 69% of the time.
 Per-coin detail lives in each strategy's BACKTEST.md / CALIBRATION.md.
+
+## Batch 21 — 2026-10-30 (12 strategies, Hyperliquid 1h BTC/ETH/HYPE, $10k, 0.045% fee + 0.01% slip/side, funding off)
+
+12 new strategies shipped, each: indicators + signals + risk config + unit
+tests + backtest on Hyperliquid 1h. Window: 2026-03-14 22:00 UTC →
+2026-10-30 00:00 UTC (BTC/ETH 5,499 bars after dedup, HYPE 5,497).
+Costs: 0.045% taker + 0.01% slippage/side. Sizing: 1% equity risk/trade,
+3x leverage cap, $10k. 132 new unit tests green. Combined -$49,260
+across 7,521 trades.
+
+| slug | source | result |
+|---|---|---|
+| anchored_vwap | Brian Shannon anchored VWAP (pivot-anchored, Investopedia) | Loser: -$5,543 combined, 525 trades, win rate 19.8%. BTC -$3,732 is the worst leg |
+| vwap_std_bands | Session VWAP ±1σ/2σ bands (StockCharts VWAP) | Loser: -$8,103 combined, 695 trades. Loses on all three coins despite a 48.9% win rate — losers run larger than winners |
+| order_flow_imbalance | Bar-delta footprint proxy (cumulative-delta concept, NordFX explainer) | **Batch worst**: -$10,996 combined, 1,424 trades. The OHLCV delta proxy carries no directional information at 1h |
+| structure_break_bos | Market-structure BOS/CHoCH (swing-pivot breaks) | Flat: +$283 combined, 433 trades. HYPE +$2,203 carries BTC/ETH losses — noise, not an edge |
+| liquidity_sweep | Sweep of prior 20-bar extreme + reclaim (SMC) | Loser: -$4,761 combined, 516 trades. Loses on all three coins; sweeps mean-revert into stops as often as they reverse |
+| asian_range_breakout | Asian session (00:00–08:00 UTC) range breakout | Loser: -$1,186 combined, 500 trades. ETH +$1,488 only green leg; the session edge does not survive 24/7 crypto |
+| point_and_figure | Dorsey P&F, 1% box, 3-box reversal | Loser: -$1,581 combined, 186 trades. Loses on all three coins; 174/186 exits are stops |
+| poc_migration | Rolling 50-bar volume-profile POC trend | Loser: -$10,319 combined, 1,387 trades. The rolling POC flips constantly (~1 trade per 12 bars); fees $8,946 nearly equal the loss |
+| multi_timeframe_stack | 4h EMA trend + 1h EMA(9/21) cross confluence | Mildly green, not a win: +$1,161 combined, 333 trades, profit factors 1.03–1.15, 78% of exits are stops — breakeven noise |
+| dmi_cross | Wilder +DI/-DI cross with ADX(14)>20 filter (StockCharts ADX) | Loser: -$4,709 combined, 552 trades. Loses on all three coins; 303/552 exits are stops |
+| aroon_cross | Chande Aroon(25) cross with >70 strength gate (StockCharts Aroon) | Flat: +$119 combined, 588 trades. BTC loses, ETH/HYPE small greens — no edge |
+| money_flow_index | MFI(14) oversold/overbought recovery (StockCharts MFI) | Loser: -$3,626 combined, 382 trades. Loses on all three coins, profit factor 0.77–0.80 |
+
+## Empirical direction (batch 21)
+
+The honest-loser streak holds for a fifteenth batch: 8 of 12 lose
+outright, 3 are flat-to-noise (structure_break_bos +$283,
+aroon_cross +$119, multi_timeframe_stack +$1,161 on $30k), and
+none is anywhere near a live gate. Combined -$49,260 across 7,521
+trades. The batch's through-line is that the volume/structure
+lane fails the same way the oscillator and candle lanes did:
+anchored VWAP and VWAP bands both lose on every coin, the
+bar-delta order-flow proxy is the batch's worst print, and the
+rolling-POC trend overtrades itself into fees. The two
+structure concepts that survive as flat rather than losers
+(BOS breaks, Aroon crosses) do so on win rates in the 30s with
+stop-dominated exits — the same signature as every prior
+near-miss. The multi-timeframe idea (4h trend gating 1h
+entries) is the batch's only mildly green print and still
+cannot clear breakeven once stops dominate 78% of exits.
+Per-coin detail lives in each strategy's BACKTEST.md /
+CALIBRATION.md.
