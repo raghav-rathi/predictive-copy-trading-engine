@@ -887,3 +887,34 @@ batches must diff candidate slugs against main's tree, not just the
 worktree listing. Per-coin detail lives in each strategy's BACKTEST.md /
 CALIBRATION.md (merged strategies only; the two duplicate builds' docs
 live on the unmerged batch branch).
+
+## Batch 22 — 2026-10-31 (12 strategies, Hyperliquid 1h BTC/ETH/HYPE, $10k, 0.045% fee + 0.01% slip/side, funding off)
+
+| hull_ma_cross | HMA(16)/HMA(64) cross (Alan Hull) | Flat: +$166 combined, 878 trades, PF 1.00 — HYPE +$3,726 offsets BTC/ETH losses, breakeven noise |
+| woodie_pivots | Woodie daily pivots, R1/S1 breakout, PP exit | Loser: -$927 combined, 397 trades, 86% of exits are stops |
+| linear_regression_channel | Raff regression channel mean reversion (50-bar, 2σ) | Loser: -$3,513 combined, 492 trades, loses on all three coins despite a 44.9% win rate |
+| halftrend | Everget HalfTrend trend flips (amplitude 2, ATR(100) channels) | Loser: -$2,518 combined, 741 trades; HYPE +$1,760 only green leg |
+| frama_trend | Ehlers FRAMA(16) price cross | Loser: -$19,837 combined, 3,066 trades — FRAMA hugs price and whipsaws |
+| vidya_trend | Chande VIDYA (CMO(9), EMA 20) price cross | Loser: -$10,518 combined, 1,303 trades, loses on all three coins |
+| choppiness_index | Choppiness(14) < 38.2 + Donchian(20) breakout | Loser: -$2,029 combined, 187 trades; HYPE +$255 only green leg (noise) |
+| efficiency_ratio | Kaufman ER(10) > 0.3 gating EMA(9/21) cross | Mildly green, not an edge: +$1,596 combined, 364 trades, PF 1.09, BTC leg -$2,074 |
+| chande_momentum_osc | CMO(14) ±50/0 threshold crossings | Loser: -$4,419 combined, 413 trades, loses on all three coins |
+| chaikin_money_flow | CMF(20) zero cross | Loser: -$14,061 combined, 1,900 trades, loses on all three coins |
+| wyckoff_upthrust | Wyckoff upthrust shorts (20-bar range, short-only) | Loser: -$2,374 combined, 417 trades — least-bad of the batch |
+| wilder_accumulative_swing | Wilder ASI cross of its EMA(10) | Loser: -$21,263 combined, 3,299 trades — worst of the batch |
+
+## Empirical direction (batch 22)
+
+The honest-loser streak holds for a sixteenth batch: of the 12 merged
+strategies, 10 lose outright and 2 are flat-to-noise (hull_ma_cross +$166,
+efficiency_ratio +$1,596 on $30k); none is anywhere near a live gate. The
+batch's through-line is that the adaptive-average lane fails by whipsaw
+(FRAMA and VIDYA both hug price and churn ~1,000+ trades per coin into
+fees) while the volume-price lane fails by overtrading (CMF and ASI
+combine for -$35,324 across 5,199 trades). The two near-breakeven prints
+are both trend-cross variants whose green legs (HYPE for Hull, ETH/HYPE
+for ER-gated EMA) do not survive the other coins. Combined batch print:
+-$79,697 across 13,457 trades. Per-coin detail lives in each strategy's
+BACKTEST.md / CALIBRATION.md. Process note: all 12 slugs were diffed
+against main's live tree via the API before building, so no duplicate
+rebuilds this batch — the stale-worktree trap from batch 21 is closed.
