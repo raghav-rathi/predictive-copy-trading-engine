@@ -918,3 +918,44 @@ for ER-gated EMA) do not survive the other coins. Combined batch print:
 BACKTEST.md / CALIBRATION.md. Process note: all 12 slugs were diffed
 against main's live tree via the API before building, so no duplicate
 rebuilds this batch — the stale-worktree trap from batch 21 is closed.
+
+## Batch 23 — 2026-11-01 (12 strategies, Hyperliquid 1h BTC/ETH/HYPE, $10k, 0.045% fee + 0.01% slip/side, funding off)
+
+Window t in [1773525600000, 1793538000000] (2026-03-14 22:00 UTC →
+2026-11-01 13:00 UTC): local cache extended with the public
+candleSnapshot tail to the last completed hour bar; the cache file
+itself was not rewritten. All 12 slugs were diffed against main's live
+tree via the API before building — six candidates already on main
+(mass_index, williams_pct_r, opening_range_breakout, camarilla_pivots,
+connors_rsi, inside_bar_breakout) were dropped, not rebuilt.
+
+| guppy_mma | GMMA 12-EMA ribbon cross (Guppy) | Flat: +$2 combined, 582 trades, PF 1.00 — HYPE green leg offsets BTC/ETH losses, breakeven noise |
+| dpo_cross | DPO(20) zero cross (displaced SMA) | Loser: -$8,977 combined, 1,267 trades, loses on all three coins |
+| rvi_cross | Ehlers RVI vs signal cross | Loser: -$20,988 combined, 3,010 trades — second-worst of the batch, oscillator whipsaw |
+| fvg_mitigation | SMC fair value gap first-mitigation entries | Mildly green, not an edge: +$1,173 combined, 696 trades, PF 1.03, green only on HYPE |
+| zscore_reversion | Bollinger z-score ±2 entry, 0 exit | Loser: -$11,515 combined, 829 trades, loses on all three coins |
+| rsi_bollinger_bands | Bollinger bands on RSI(14) | Loser: -$10,744 combined, 789 trades, loses on all three coins |
+| central_pivot_range | Ochoa CPR TC/BC breakout (prior UTC day) | Loser: -$5,973 combined, 1,103 trades; HYPE green leg only |
+| nr7_breakout | Crabel NR7 range breakout (24-bar validity) | Loser: -$18,252 combined, 2,177 trades — daily pattern diluted on 1h bars |
+| inverse_fisher_rsi | Ehlers IFish on RSI(5), ±0.5 thresholds | Loser: -$3,590 combined, 1,005 trades — least-bad loser of the batch |
+| cg_oscillator | Ehlers CG vs trigger cross | Loser: -$20,629 combined, 3,362 trades — worst of the batch, 10-bar centroid flips constantly |
+| negative_volume_index | Dysart/Fosback NVI vs EMA(255) | Loser: -$7,702 combined, 552 trades, loses on all three coins |
+| volume_price_trend | PVT vs SMA(20) cross | Loser: -$8,719 combined, 1,332 trades, loses on all three coins |
+
+## Empirical direction (batch 23)
+
+The honest-loser streak holds for a seventeenth batch: of the 12
+strategies, 10 lose outright and 2 are flat-to-noise (guppy_mma +$2,
+fvg_mitigation +$1,173 on $30k); none is anywhere near a live gate.
+The batch's through-line is that the oscillator lane fails by
+overtrading (RVI and CG combine for -$41,617 across 6,372 trades,
+both with MaxDD beyond -70% on the combined curve) while the
+mean-reversion lane fails by fading trends (z-score, RSI bands, and
+IFish all lose on all three coins or all but HYPE). The two
+near-breakeven prints are both trend-ribbon/gap variants whose green
+legs are HYPE-only and do not survive BTC or ETH. Combined batch
+print: -$115,913 across 16,704 trades. Per-coin detail lives in each
+strategy's BACKTEST.md / CALIBRATION.md. Process note: all 12 slugs
+were diffed against main's live tree via the API before building, so
+no duplicate rebuilds this batch — the stale-worktree trap from batch
+21 stays closed.
