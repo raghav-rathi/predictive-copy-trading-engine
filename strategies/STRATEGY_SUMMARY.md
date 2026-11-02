@@ -959,3 +959,41 @@ strategy's BACKTEST.md / CALIBRATION.md. Process note: all 12 slugs
 were diffed against main's live tree via the API before building, so
 no duplicate rebuilds this batch — the stale-worktree trap from batch
 21 stays closed.
+
+## Batch 24 — 2026-11-02 (12 strategies, Hyperliquid 1h BTC/ETH/HYPE, $10k, 0.045% fee + 0.01% slip/side, funding off)
+Window t in [1773525600000, 1793628000000] (2026-03-14 22:00 UTC →
+2026-11-02 14:00 UTC): local cache extended with the public
+candleSnapshot tail to the last completed hour bar; the cache file
+itself was not committed. All 12 slugs were diffed against main's live
+tree via the API before building — four candidates already on main
+(qstick, tdi, momentum_pinball, and the lsma_slope-adjacent linreg idea)
+were dropped, not rebuilt.
+| aroon_oscillator | Chande Aroon oscillator (25) zero cross | Loser: $-1,954 combined, 750 trades, PF 0.94 — green only on ETH |
+| gann_hilo | Krausz Hi-Lo Activator SMA(3) state flips | Loser: $-18,135 combined, 2391 trades, PF 0.68 — loses on all three coins, worst of the batch |
+| hull_suite | InSilico Hull Suite HMA(16) slope turns | Loser: $-17,050 combined, 2160 trades, PF 0.70 — loses on all three coins, second-worst of the batch |
+| kumo_breakout | Ichimoku Kumo cloud-edge breakout | Loser: $-9,118 combined, 896 trades, PF 0.69 — loses on all three coins |
+| obv_cross | OBV vs EMA(20) cross (Granville) | Loser: $-16,198 combined, 2102 trades, PF 0.67 — loses on all three coins, BTC win rate just 19.4% |
+| ravi | Chande RAVI +/-0.3% reference lines | Loser: $-1,681 combined, 409 trades, PF 0.92 — loses on all three coins, second-smallest loss |
+| vhf | White VHF(28) regime trigger + SMA direction | Loser: $-4,366 combined, 415 trades, PF 0.76 — green only on HYPE |
+| zigzag_swing | ZigZag 5% confirmed-swing breakout | Loser: $-1,048 combined, 175 trades, PF 0.88 — loses on all three coins, smallest loss of the batch |
+| gann_fan | Gann 1x1 fan at 1 ATR/bar from 30-bar anchors | Loser: $-9,657 combined, 1067 trades, PF 0.79 — loses on all three coins |
+| keltner_breakout | Keltner EMA(20) +/- 2xATR(10) breakout | Loser: $-2,892 combined, 417 trades, PF 0.85 — loses on all three coins |
+| adaptive_rsi | Kaufman ER-adaptive RSI(14), 30/70 entries | Loser: $-1,728 combined, 91 trades, PF 0.62 — loses on all three coins on only 91 trades |
+| kijun_cross | Ichimoku Kijun-sen(26) cross alone | Loser: $-10,375 combined, 1552 trades, PF 0.79 — loses on all three coins |
+
+## Empirical direction (batch 24)
+
+The honest-loser streak holds for an eighteenth batch: all 12
+strategies lose outright, none green on more than one coin, none
+anywhere near a live gate. Combined batch print: -$94,202 across
+12,425 trades. The through-line splits two ways: the fast
+state/turn/flow lane fails by overtrading (gann_hilo, hull_suite,
+and obv_cross combine for -$51,383 across 6,653 trades, all with
+combined MaxDD beyond -55%), while the slow regime/level lane fails
+by arriving late (kumo, kijun, and keltner_breakout lose on every
+coin despite far fewer trades). The least-bad print is zigzag_swing
+at -$1,048 on just 175 trades — near-flat, but still negative
+everywhere and too thin to be a signal. Per-coin detail lives in
+each strategy's BACKTEST.md / CALIBRATION.md. Process note: all 12
+slugs were diffed against main's live tree via the API before
+building, so no duplicate rebuilds this batch.
