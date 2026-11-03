@@ -997,3 +997,40 @@ everywhere and too thin to be a signal. Per-coin detail lives in
 each strategy's BACKTEST.md / CALIBRATION.md. Process note: all 12
 slugs were diffed against main's live tree via the API before
 building, so no duplicate rebuilds this batch.
+
+## Batch 25 — 2026-11-03 (12 strategies, Hyperliquid 1h BTC/ETH/HYPE, $10k, 0.045% fee + 0.01% slip/side, funding off)
+Window t in [1773525600000, 1793714400000] (2026-03-14 22:00 UTC →
+2026-11-03 14:00 UTC): local cache extended with the public
+candleSnapshot tail to the last completed hour bar; the cache file
+itself was not committed. All 12 slugs were diffed against main's live
+tree via the API before building — no duplicate rebuilds this batch.
+| trend_intensity_index | Pee TII(30) 80/20 crosses | Winner: +$1,468 combined, 27 trades, PF 2.37 — green on all three coins, but only 27 trades: a thin low-frequency print, not a live gate |
+| relative_volatility_index | Dorsey RVI(10/10) 50 cross | Loser: $-20,273 combined, 3154 trades, PF 0.66 — worst of the batch, overtrades into noise |
+| kairi_index | Kairi (close-SMA25)/SMA25, +/-5% recovery | Loser: $-1,913 combined, 78 trades, PF 0.50 — loses on all three coins |
+| pring_special_k | Pring Special K vs its signal line | Mixed: +$542 combined, 934 trades, PF 1.01 — HYPE +$3,805 carries BTC/ETH losses |
+| blau_dss | Blau DSS(21,3,3) vs trigger | Loser: $-19,145 combined, 2676 trades, PF 0.69 — second-worst, overtrades |
+| cutler_rsi | Cutler simple-average RSI(14) 30/70 | Loser: $-6,713 combined, 780 trades, PF 0.81 — loses on all three coins |
+| cardwell_rsi_ranges | Cardwell RSI bull 40-80 / bear 20-60 ranges | Loser: $-1,872 combined, 393 trades, PF 0.90 — BTC near breakeven (-$68), still negative everywhere |
+| fibonacci_fan | Rolling 50-bar Fibonacci fan lines | Loser: $-2,103 combined, 440 trades, PF 0.90 — green only on HYPE |
+| fibonacci_pivots | Prior-24-bar Fibonacci pivots (R1/S1) | Loser: $-3,946 combined, 632 trades, PF 0.86 — loses on all three coins |
+| demark_trendline | DeMark TD trendline breakouts (2-bar pivot lag) | Loser: $-13,118 combined, 1601 trades, PF 0.76 — BTC/ETH MaxDD ~-59% |
+| weinstein_stage | Weinstein Stage 2/4 via EMA150/200 | Loser: $-1,169 combined, 476 trades, PF 0.94 — green on ETH/HYPE, BTC drags it negative |
+| wyckoff_sos | Wyckoff SOS/SOW, 40-bar range + 1.5x volume | Loser: $-5,358 combined, 576 trades, PF 0.60 — loses on all three coins |
+
+## Empirical direction (batch 25)
+
+The honest-loser streak breaks in form but not in substance: two
+combined-green prints appear for the first time in several batches —
+trend_intensity_index (+$1,468, green everywhere) and pring_special_k
+(+$542, HYPE-carried) — but neither clears a live gate. TII's edge
+rests on 27 trades in 7.5 months, far too thin to trust, and Pring's
+combined green masks two losing coins. The rest of the batch repeats
+the established pattern: the fast cross/oscillator lane fails by
+overtrading (RVI, Blau DSS and DeMark combine for -$52,535 across
+7,431 trades, all with combined MaxDD beyond -46%), while the slow
+level/range lane fails quietly (Fibonacci pivots, Cardwell ranges and
+Kairi all lose on every coin at PF 0.50-0.90). Combined batch print:
+-$73,599 across 11,767 trades. Per-coin detail lives in each
+strategy's BACKTEST.md / CALIBRATION.md. Process note: all 12 slugs
+were diffed against main's live tree via the API before building, so
+no duplicate rebuilds this batch.
