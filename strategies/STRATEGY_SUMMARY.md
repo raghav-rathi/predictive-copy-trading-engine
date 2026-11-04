@@ -1034,3 +1034,41 @@ Kairi all lose on every coin at PF 0.50-0.90). Combined batch print:
 strategy's BACKTEST.md / CALIBRATION.md. Process note: all 12 slugs
 were diffed against main's live tree via the API before building, so
 no duplicate rebuilds this batch.
+
+## Batch 26 — 2026-11-04 (12 strategies, Hyperliquid 1h BTC/ETH/HYPE, $10k, 0.045% fee + 0.01% slip/side, funding off)
+Window t in [1773525600000, 1793800800000] (2026-03-14 22:00 UTC →
+2026-11-04 14:00 UTC): local cache extended with the public
+candleSnapshot tail to the last completed hour bar; the cache file
+itself was not committed. All 12 slugs were diffed against main's live
+tree via the API before building — no duplicate rebuilds this batch.
+| elliott_wave_oscillator | Williams EWO(5/35) zero cross + SMA50 slope | Loser: $-2,073 combined, 376 trades, PF 0.74-1.02 — green only on HYPE, wins <30% on BTC/ETH |
+| acceleration_bands | Headley bands (20, factor 4), 2 closes outside | Loser: $-5,015 combined, 379 trades, PF 0.48-0.81 — loses on all three coins |
+| rainbow_ma | 22-EMA ribbon (9-100) breakout | Loser: $-14,000 combined, 1860 trades, PF 0.59-0.82 — worst of the batch, MaxDD -46.7% |
+| percentage_volume_osc | PVO(12,26,9) signal crosses + SMA50 filter | Loser: $-6,239 combined, 1225 trades, PF 0.67-0.93 — loses on all three coins |
+| harmonic_butterfly | Butterfly XABCD (B 0.786, D 1.272 XA) | Loser: $-163 combined, 13 trades, PF 0.34-1.04 — thin, fires rarely |
+| harmonic_crab | Crab XABCD (B 0.382-0.618, D 1.618 XA) | Near-no-signal: $-146 combined, 2 trades, both on BTC — band too strict for 1h crypto |
+| harmonic_shark | Shark XABCD (C 1.13-1.618 AB, D 0.886-1.13 XA) | Marginal green: +$269 combined, 26 trades, PF 0.86-2.16 — only combined-green print, thin, BTC-only |
+| episodic_pivot | Bonde/Qullamaggie EP, 1h adaptation (gap >=2%, vol >=3x) | No trades: port failure — 1h crypto has no session gaps (max observed gap 1.43%), trigger can never fire |
+| gap_and_go | Gap >=1.5% on >=2x volume, break of gap-bar extreme | No trades: same structural port failure — no 1h bar gaps >=1.5% in the window |
+| outside_bar_breakout | Engulfing-range bar, break of its extreme | Loser: $-1,575 combined, 427 trades, PF 0.47-1.34 — HYPE +$2,262 carried, BTC -$3,478 drags it negative |
+| stoch_macd_combo | Stoch(14,3) 30/70 cross + MACD confirmation | Loser: $-1,072 combined, 67 trades, PF 0.33-0.81 — loses on all three coins |
+| keltner_macd | Keltner(20,10,1.5) breakout + MACD confirmation | Loser: $-8,226 combined, 706 trades, PF 0.67-0.89 — loses on all three coins |
+
+## Empirical direction (batch 26)
+
+The honest-loser streak holds: 10 of 12 strategies lose combined, one
+is marginally green on 26 thin trades (harmonic_shark, +$269, BTC-only),
+and two print zero trades for a structural reason, not a code reason.
+The batch's real finding is the port failure: session-gap setups
+(episodic_pivot, gap_and_go) cannot trigger on continuous 1h crypto
+candles at all — max hourly gap in the window is 1.43% (HYPE), below
+both thresholds — so gap-based equity setups need session-based data
+to be testable, and should not be re-ported to 1h bars. Elsewhere the
+established pattern repeats: band/ribbon breakouts fail by overtrading
+(rainbow_ma -$14,000 on 1,860 trades, keltner_macd -$8,226 on 706),
+oscillator crosses fail quietly (PVO, stoch+MACD, EWO all PF < 1.0
+combined), and harmonic patterns mostly do not fire (crab: 2 trades;
+butterfly: 13). Combined batch print: -$38,242 across 5,081 trades.
+Per-coin detail lives in each strategy's BACKTEST.md / CALIBRATION.md.
+Process note: all 12 slugs were diffed against main's live tree via
+the API before building, so no duplicate rebuilds this batch.
