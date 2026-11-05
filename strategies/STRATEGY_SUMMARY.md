@@ -1072,3 +1072,48 @@ butterfly: 13). Combined batch print: -$38,242 across 5,081 trades.
 Per-coin detail lives in each strategy's BACKTEST.md / CALIBRATION.md.
 Process note: all 12 slugs were diffed against main's live tree via
 the API before building, so no duplicate rebuilds this batch.
+
+## Batch 27 — 2026-11-05 (12 strategies, Hyperliquid 1h BTC/ETH/HYPE, $10k, 0.045% fee + 0.01% slip/side, funding off)
+Window t in [1773525600000, 1793887200000] (2026-03-14 22:00 UTC →
+2026-11-05 14:00 UTC): local cache extended with the public
+candleSnapshot tail to the last completed hour bar; the cache file
+itself was not committed. 5 of the 12 candidate slugs were already on
+main (supertrend, guppy_mma, williams_alligator, parabolic_sar,
+ttm_squeeze) and were swapped for alternates (kama, zlema,
+vwma_crossover, mean_reversion_zscore, adx_trend_system) after a live
+API diff — no duplicate rebuilds this batch.
+| turtle_trading | Turtle System 1 (20/10) + System 2 (55/20) breakouts, 2N stop | Loser: $-3,069 combined, 633 trades, PF 0.77-1.02 — ETH +$191 breakeven noise, BTC/HYPE lose, 89% of exits are stops |
+| ichimoku_cloud | Tenkan/Kijun cross + price vs cloud + Chikou confirmation | Loser: $-1,654 combined, 187 trades, PF 0.67-0.99 — strictest filters in the batch, worst combined win rate (29.9%) |
+| heikin_ashi_trend | 2 same-colour HA candles + EMA50 filter, exit on first opposite colour | Loser: $-22,064 combined, 2480 trades, PF 0.44-0.66 — churns to death, $11,102 in fees |
+| donchian_channel | Donchian 20-bar breakout, exit through midline | Loser: $-3,116 combined, 663 trades, PF 0.75-1.00 — ETH flat (+$17), BTC/HYPE lose, 79% of exits are stops |
+| elder_impulse_system | EMA13 + MACD-hist impulse bars (green/red/blue) | Loser: $-23,143 combined, 3711 trades, PF 0.51-0.60 — worst churn of the batch, $15,462 in fees; Elder built it as a filter, not an entry trigger |
+| hull_ma_crossover | HMA(16) vs HMA(32) cross + slope filter | Loser: $-5,383 combined, 1288 trades, PF 0.76-1.06 — HYPE alone green (+$1,060), Hull's anti-crossover warning holds |
+| williams_r_oscillator | %R(14) exit-the-extreme + SMA50 filter | Loser: $-6,493 combined, 402 trades, PF 0.44-0.78 — worst per-trade expectancy in the batch (-$16.15) |
+| kama | KAMA(10,2,30) price cross + rising/falling KAMA | Big loser: $-15,350 combined, 2351 trades, PF 0.60-0.79 — 22.4% win rate, $13,310 in fees |
+| zlema | ZLEMA(20) vs ZLEMA(50) cross | Loser, near breakeven: $-2,151 combined, 831 trades, PF 0.82-1.12 — HYPE green (+$1,703), closest to break-even in the batch |
+| vwma_crossover | VWMA(10) vs VWMA(50) cross | Breakeven scratch: $-150 combined, 562 trades, PF 0.68-1.21 — ETH +$1,857 and HYPE +$728 green, BTC -$2,736 gives it all back |
+| mean_reversion_zscore | z-score vs SMA20, enter on reversion inside ±2, exit at 0 | Loser: $-2,890 combined, 323 trades, PF 0.72-0.87 — 52.9% win rate but negative expectancy; exits cut winners, stops let losers run |
+| adx_trend_system | +DI/-DI cross with ADX(14) > 25 | Loser: $-2,665 combined, 261 trades, PF 0.57-0.88 — DI crosses arrive late, 28.0% win rate |
+
+## Empirical direction (batch 27)
+
+The honest-loser streak extends to 11 of 12 losers and one breakeven
+scratch (vwma_crossover, -$150 on 562 trades) — no strategy prints
+green combined, the first batch with zero combined winners. It is also
+the worst batch by total dollars: -$88,128 across 13,692 trades, driven
+by churn: elder_impulse_system (-$23,143 on 3,711 trades) and
+heikin_ashi_trend (-$22,064 on 2,480 trades) both exit on the first
+opposite-colour/impulse bar, so fees alone ($15,462 and $11,102) eat
+more than half of each loss. The pattern is now structural: any system
+whose exit is "first sign of weakening" (HA colour flip, impulse-blue
+bar) trades itself to death on 1h crypto; any system whose entry is a
+cross of two smoothed lines (KAMA, HMA, ZLEMA, VWMA) whipsaws in chop
+with PF 0.60-1.12. The only near-misses are the volume-weighted and
+de-lagged variants (vwma PF 0.99, zlema PF 0.94) — both still net
+negative. Combined batch print: -$88,128 across 13,692 trades.
+Per-coin detail lives in each strategy's BACKTEST.md / CALIBRATION.md.
+Process note: all 12 slugs were diffed against main's live tree via
+the API before building; 5 duplicates were swapped for alternates.
+Backtest numbers were re-run by the coordinator on the final shipped
+code and the BACKTEST.md files corrected to the verified figures
+(builders' pre-fix runs differed by <0.5% of trades).
