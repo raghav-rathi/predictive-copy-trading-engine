@@ -1117,3 +1117,49 @@ the API before building; 5 duplicates were swapped for alternates.
 Backtest numbers were re-run by the coordinator on the final shipped
 code and the BACKTEST.md files corrected to the verified figures
 (builders' pre-fix runs differed by <0.5% of trades).
+
+## Batch 28 — 2026-11-06 (12 strategies, Hyperliquid 1h BTC/ETH/HYPE, $10k, 0.045% fee + 0.01% slip/side, funding off)
+Window t in [1773525600000, 1793973600000] (2026-03-14 22:00 UTC →
+2026-11-06 14:00 UTC): local cache extended with the public
+candleSnapshot tail to the last completed hour bar; the cache file
+itself was not committed. All 12 slugs were diffed against main's live
+tree via the API before building — none existed on main (319 dirs).
+| wilder_volatility_stop | Wilder Volatility System (1978): SIC ± 3x ATR(7) stop-and-reverse | Breakeven scratch: $-0.75 combined, 518 trades, PF 1.00 — HYPE +$894, BTC/ETH lose; 96% of exits are stops |
+| ema_pullback | EMA(20) pullback-touch + close-back-above confirmation, EMA(50) trend filter | Worst in batch: $-18,418 combined, 1951 trades, PF 0.65 — 22.0% win rate on all three coins, -$62.0% combined MaxDD; pullback entries fire constantly into chop |
+| stochastic_divergence | Slow stoch %K(14,3) regular + hidden divergence vs 5-bar pivots | Loser: $-4,160 combined, 747 trades, PF 0.86 — best win rate in the batch (47.1%) but losers outweigh winners; only HYPE green (+$248, noise) |
+| wolfe_wave | Bill Wolfe 5-point wave, entry on close back above the 1-3 line, EPA 1-4 line target | Loser: $-2,075 combined, 163 trades, PF 0.74 — BTC the only green coin (+$296); ETH drives the loss |
+| three_drives_pattern | Three Drives harmonic (0.618/0.786 pullbacks, 1.272/1.618 extensions, symmetry-gated) | Zero trades: $0.00 — the full pattern never completed; 5 near-misses all failed the drive-length symmetry check. Untestable as specified |
+| five_zero_pattern | Carney 5-0 harmonic (AB 1.13-1.618x XA, BC 1.618-2.24x AB, D = 50% of BC) | Thin winner: +$61.57 combined, 38 trades, PF 1.09 — 65.8% win rate, +$1.62/trade expectancy; more noise than edge |
+| megaphone_pattern | Broadening formation: 3 higher highs + 3 lower lows, breakout of the expanding boundary | Zero trades: $0.00 — the full pattern never completed; 9 alternating sequences on BTC failed the 0.5x ATR per-swing expansion bar. Untestable as specified |
+| rounding_bottom | 60-bar saucer, neckline breakout + volume confirmation (rounding-top mirror for shorts) | Loser: $-10,429.62 combined, 490 trades, PF 0.50 — all three coins lose, 23.7% win rate, 72% of exits are stops |
+| belt_hold_pattern | Nison belt hold (open on the extreme, body >= 60% of range) with trend context | Loser: $-1,184.82 combined, 556 trades, PF 0.95 — ETH wins (+$1,297) but BTC (-$2,316) gives it back; effectively breakeven-to-negative |
+| shooting_star_pattern | Shooting star (short) / inverted hammer (long), upper/lower shadow >= 2x body | Breakeven scratch: +$12.45 combined, 120 trades, PF 1.00 — HYPE +$473 offset by BTC/ETH losses; noise around zero |
+| volume_weighted_macd | MACD(12,26,9) on 20-bar volume-weighted price + SMA(50) trend filter | Loser: $-1,168.99 combined, 201 trades, PF 0.88 — BTC 19.1% win rate drives the loss; MACD cross fires late |
+| fractal_dimension_index | Ehlers FDI(30): trade SMA(20) crosses only while FDI < 1.4 (trending) | Big loser: $-8,840.51 combined, 801 trades, PF 0.61 — worst MaxDD in the batch (-32.3% combined); the FDI filter does not keep the system out of losing crosses |
+
+## Empirical direction (batch 28)
+
+Combined batch print: -$46,204.73 across 5,585 trades. No clean winners:
+one thin winner (five_zero_pattern +$61.57 on 38 trades), two breakeven
+scratches (wilder_volatility_stop -$0.75, shooting_star_pattern +$12.45),
+two zero-trade untestables (three_drives_pattern, megaphone_pattern —
+both geometric patterns whose full form never completes on 1h crypto),
+and seven losers. The batch's lesson is the mirror of batch 27's: the
+failure mode is no longer churn alone — it is pattern rarity plus
+pullback-entry failure. Geometric/harmonic patterns either never fire
+(three drives, megaphone) or fire so rarely their results are noise
+(5-0: 38 trades in 7.5 months). The one big loss, ema_pullback
+(-$18,418, -$62.0% combined MaxDD), shows the classic pullback trap:
+entries trigger on every dip into chop and the EMA(20) exit comes too
+late. The FDI experiment (-$8,841) shows a regime filter that cannot
+tell a real trend from a noisy SMA cross is worse than no filter.
+Per-coin detail lives in each strategy's BACKTEST.md / CALIBRATION.md.
+Process note: all 12 slugs were diffed against main's live tree via
+the API before building; no duplicates. Backtest numbers were re-run
+by the coordinator on the final shipped code and corrected where
+builders had mixed the summed-curve final with the closed-trade sum
+(rounding_bottom, belt_hold_pattern) or shipped a geometrically
+impossible exit (five_zero_pattern: the brief's 38.2% C-to-D exit sat
+below the entry and exited 37/38 positions immediately; corrected to
+the standard 38.2% retracement of the BC leg from B, as-specified
+numbers -$214.27 preserved in its CALIBRATION.md).
