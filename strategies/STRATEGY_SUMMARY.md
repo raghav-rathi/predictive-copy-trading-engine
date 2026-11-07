@@ -1163,3 +1163,47 @@ impossible exit (five_zero_pattern: the brief's 38.2% C-to-D exit sat
 below the entry and exited 37/38 positions immediately; corrected to
 the standard 38.2% retracement of the BC leg from B, as-specified
 numbers -$214.27 preserved in its CALIBRATION.md).
+## Batch 29 — 2026-11-07
+
+| Strategy | Mechanism | Combined result |
+|---|---|---|
+| cyber_cycle | Ehlers Cyber Cycle (alpha 0.07), trade Signal crossing its 1-bar delay | Worst in batch: $-11,891 combined, 1,721 trades, PF 0.79 — the Signal cross fires on nearly every wiggle; 33.0% win rate, -46.3% combined MaxDD |
+| rsi2_system | Connors RSI(2) ≤5 / ≥95 with SMA(200) filter, exit on close past SMA(5) | Loser: $-4,409 combined, 377 trades, PF 0.56 — 54.1% win rate but avg loss dwarfs avg win; the daily-bars setup does not transfer to 1h crypto |
+| dema_cross | DEMA(12) vs DEMA(26) cross | Near breakeven: $-1,318 combined, 967 trades, PF 0.97 — only strategy with a winning coin (HYPE +$2,934, PF 1.19); 686/967 exits are stops |
+| macd_zero_line | MACD(12,26,9) line crossing zero | Loser: $-1,592 combined, 594 trades, PF 0.94 — HYPE green (+$918) but BTC/ETH drag it under; 505/594 exits are stops |
+| bollinger_breakout | BB(20,2) squeeze (bandwidth lowest 15% of 50 bars) then close outside band | Loser: $-2,822 combined, 567 trades, PF 0.79 — breakouts snap back inside; the close-back-inside exit cuts 87% of trades at a small loss |
+| williams_fractals | 5-bar fractal breakout + Alligator (lips>teeth>jaw) filter | Loser: $-5,153 combined, 582 trades, PF 0.80 — red on all three coins; the Alligator filter does not save fractal breaks on 1h |
+| one_two_three_reversal | Joe Ross 1-2-3: close beyond point 2, exit below point 3 | Loser: $-2,678 combined, 665 trades, PF 0.91 — HYPE thin green (+$285); 591/665 exits are stops |
+| andrews_pitchfork | Pitchfork lower/upper-parallel bounce, target the median line | Loser: $-7,131 combined, 794 trades, PF 0.78 — worst by Sharpe (-3.16); red on all three coins, -25.1% combined MaxDD |
+| fibonacci_retracement | Pullback into the 38.2–61.8% golden zone + signal candle, target old high | Loser: $-6,823 combined, 530 trades, PF 0.70 — worst Sharpe in batch (-3.88); ETH/HYPE both worse than -$2,600 |
+| floor_pivots | Classic floor pivots from trailing 24 bars: break R1/S1 on volume, target R2/S2 | Only winner: +$1,134 combined, 273 trades, PF 1.09 — HYPE carries it (+$1,667, Sharpe 1.64); BTC red (-$1,091); 201/273 exits are stops |
+| morning_star_pattern | Morning/evening star 3-candle reversal with SMA(50) trend filter | Loser: $-697 combined, 148 trades, PF 0.91 — fewest trades in batch; only 11/148 exits on the opposite star, the pattern rarely follows through at 1h |
+| chaikin_oscillator | Chaikin Oscillator EMA(3)−EMA(10) of ADL, zero cross + SMA(50) filter | Heavy loser: $-9,414 combined, 1,003 trades, PF 0.70 — red on all three coins; raw zero crosses whipsaw on 1h noise |
+
+## Empirical direction (batch 29)
+
+Combined batch print: -$52,794 across 8,221 trades. One winner
+(floor_pivots +$1,134, HYPE-carried and lopsided), one near-breakeven
+(dema_cross -$1,318, PF 0.97), ten losers. The batch's lesson is that
+the failure mode has converged: whatever the entry trigger — cycle
+cross, oscillator zero cross, fractal break, Fib zone, pitchfork
+bounce — 1h crypto hands back the same profile, ~30–35% win rate with
+losers outweighing winners and 60–90% of exits landing on the 2xATR
+stop. The two exceptions are instructive in opposite directions:
+floor_pivots wins with the FEWEST trades of any breakout system (273)
+and the tightest MaxDD (-6.4%), while cyber_cycle loses the most with
+the MOST trades (1,721) — churn, not selectivity, is what kills these
+systems. RSI(2) is the cleanest falsification of a famous rule: 54.1%
+win rate, PF 0.56 — the bounce is real and still loses money because
+the losers are 2–3x the winners. Per-coin detail lives in each
+strategy's BACKTEST.md / CALIBRATION.md.
+Process note: all 12 slugs were diffed against main's live tree via
+the API before building; no duplicates. Backtest numbers were re-run
+by the coordinator on the final shipped code on the fixed window
+(t in [1773525600000, 1794060000000), last completed bar 13:00 UTC
+2026-11-07; BTC/ETH 5,704 bars, HYPE 5,702) and corrected where the
+builders' standard-runner numbers included the partial 14:00 UTC bar
+(dema_cross HYPE 315→314 trades, bollinger_breakout HYPE 211→210
+trades, plus 0.01 Sharpe rounding on four rows). No spec corrections
+were needed — all twelve briefs were geometrically implementable as
+written. No parameters were tuned to PnL.
