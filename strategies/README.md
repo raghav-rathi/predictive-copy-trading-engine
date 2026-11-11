@@ -88,3 +88,25 @@ gap patterns assume an overnight close that does not exist here. Honest
 losers recorded in each BACKTEST.md.
 
 No shared infra changes in this batch.
+
+# Batch 33 (2026-11-11) — Chande / Ehlers / Wilder / Bollinger / Connors sweep
+
+Twelve more signal engines on `feat/strat-iter-20261111-batch33`, from
+published, named-author mechanisms: `rwi` (Chande & Kroll Random Walk Index),
+`voss_predictive_filter` (Ehlers Voss, TASC Aug 2019), `ehlers_early_onset_trend`
+(Ehlers Quotient Transform, TASC Aug 2014), `ehlers_rsi` (Ehlers SuperSmoother
+RSI), `connors_cumulative_rsi` (Connors cumulative RSI), `supertrend_ema_filter`
+(Supertrend + EMA(200) regime filter), `macd_vwap_combo` (MACD + UTC-day VWAP),
+`bollinger_w_bottom` (Bollinger W-bottom / M-top), `tema_cross` (TEMA 9/21),
+`vortex_squeeze` (Vortex cross + BandWidth squeeze gate), `donchian_adx`
+(Donchian 20 + ADX filter), `wilder_volatility_system` (Wilder Volatility
+System, ATR(7) breakout). Same subpackage layout; 156 new unit tests green.
+Backtests on Hyperliquid 1h candles (BTC/ETH/HYPE, 2026-03-14 22:00 UTC →
+2026-11-11 13:00 UTC): combined -$28,551 across 9,166 trades — 9 losers, 3
+nominally green. The only genuine winner is `wilder_volatility_system`
+(+$3,758, 490 trades, Sharpe 1.20; HYPE +$2,804, ETH +$1,921, BTC -$967);
+`supertrend_ema_filter` (+$1,205) and `connors_cumulative_rsi` (+$539) are
+HYPE-carried / thin. Worst is `tema_cross` (-$10,514, 1,731 trades, $11,261 in
+fees). Honest losers recorded in each BACKTEST.md.
+
+No shared infra changes in this batch.
