@@ -110,3 +110,9 @@ HYPE-carried / thin. Worst is `tema_cross` (-$10,514, 1,731 trades, $11,261 in
 fees). Honest losers recorded in each BACKTEST.md.
 
 No shared infra changes in this batch.
+
+# Batch 37 (2026-11-16) — breadth proxies, cycle transforms, Dow/Elliott, volatility fades
+
+Twelve more signal engines on `feat/strat-iter-20261116-batch37`: `mcclellan_oscillator` (McClellan breadth oscillator on candle-count RANA), `arms_index` (Arms TRIN), `demark_pivots` (DeMark conditional pivots), `jurik_rsx` (Jurik RSX reconstruction), `fft_dominant_cycle` (rolling-FFT dominant-cycle reconstruction), `wavelet_trend` (db4 wavelet approximation slope, pure-numpy DWT), `bayesian_changepoint` (Adams & MacKay BOCD), `volatility_quality_index` (Stridsman VQI), `dow_theory_trend` (Dow swing structure + volume), `elliott_wave_count` (strict 5-wave count), `schwager_volatility_ratio` (Schwager VR wide-bar fade), `prev_day_high_low` (prior UTC-day high/low breakout). Same subpackage layout; 227 new unit tests green. Backtests on Hyperliquid 1h candles (BTC/ETH/HYPE, 2026-03-14 22:00 UTC → 2026-11-16 14:00 UTC): combined -$101,897 across 11,929 trades — zero green strategies; least-bad are `elliott_wave_count` (-$44, 34 trades) and `bayesian_changepoint` (-$403, 55 trades), both break-even noise. Worst is `volatility_quality_index` (-$20,285, 3,742 trades, $26,297 in fees); `mcclellan_oscillator` is worst per-trade (-$20.95). Honest losers recorded in each BACKTEST.md.
+
+No shared infra changes in this batch.
