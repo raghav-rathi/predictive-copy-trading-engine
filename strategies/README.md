@@ -66,6 +66,7 @@ to −24% net).
 
 No shared infra changes in this batch.
 
+
 ---
 
 # Batch 20 (2026-10-29) — oscillator crosses, pullbacks, ratio breakout, candle patterns
@@ -114,5 +115,11 @@ No shared infra changes in this batch.
 # Batch 37 (2026-11-16) — breadth proxies, cycle transforms, Dow/Elliott, volatility fades
 
 Twelve more signal engines on `feat/strat-iter-20261116-batch37`: `mcclellan_oscillator` (McClellan breadth oscillator on candle-count RANA), `arms_index` (Arms TRIN), `demark_pivots` (DeMark conditional pivots), `jurik_rsx` (Jurik RSX reconstruction), `fft_dominant_cycle` (rolling-FFT dominant-cycle reconstruction), `wavelet_trend` (db4 wavelet approximation slope, pure-numpy DWT), `bayesian_changepoint` (Adams & MacKay BOCD), `volatility_quality_index` (Stridsman VQI), `dow_theory_trend` (Dow swing structure + volume), `elliott_wave_count` (strict 5-wave count), `schwager_volatility_ratio` (Schwager VR wide-bar fade), `prev_day_high_low` (prior UTC-day high/low breakout). Same subpackage layout; 227 new unit tests green. Backtests on Hyperliquid 1h candles (BTC/ETH/HYPE, 2026-03-14 22:00 UTC → 2026-11-16 14:00 UTC): combined -$101,897 across 11,929 trades — zero green strategies; least-bad are `elliott_wave_count` (-$44, 34 trades) and `bayesian_changepoint` (-$403, 55 trades), both break-even noise. Worst is `volatility_quality_index` (-$20,285, 3,742 trades, $26,297 in fees); `mcclellan_oscillator` is worst per-trade (-$20.95). Honest losers recorded in each BACKTEST.md.
+
+No shared infra changes in this batch.
+
+# Batch 38 (2026-11-17) — indicator combos, breakouts, S/R flips, trendlines
+
+Twelve more signal engines on `feat/strat-iter-20261117-batch38`: `heikin_ashi_macd` (Heikin Ashi + MACD histogram zero-cross, Raisontgh), `cci_macd_combo` (CCI(14) ±100 crosses confirmed by MACD), `triple_rsi` (RSI 7/14/21 full agreement), `volume_ma_breakout` (20-bar breakout + 1.5x volume), `swing_high_low_breakout` (5-bar pivot HH/HL structure breakout), `support_resistance_flip` (break-and-retest role reversal on 50-bar pivot levels), `trendline_breakout` (Demark-style trendlines through last two 10-bar pivots), `supertrend_rsi` (Supertrend(10,3) + RSI(14) 50-cross), `ichimoku_macd` (Ichimoku cloud + Tenkan/Kijun + MACD), `adx_ema_trend` (EMA 20/50 cross with ADX(14) > 25), `rsi_volume_confirmation` (RSI(14) 50-cross + 1.25x volume), `donchian_macd` (Donchian(20) breakout + MACD histogram). Same subpackage layout; 206 new unit tests green. Backtests on Hyperliquid 1h candles (BTC/ETH/HYPE, 2026-03-14 22:00 UTC → 2026-11-17 14:00 UTC): combined -$56,719 across 8,649 trades — zero green strategies; least-bad are `ichimoku_macd` (-$254, 293 trades, PF 0.98) and `adx_ema_trend` (-$573, 76 trades, PF 0.82), both break-even noise. Worst is `triple_rsi` (-$11,465, 1,294 trades, BTC Sharpe -3.74); `swing_high_low_breakout` is worst by Sharpe (-3.50). Gross +$5,598 before $62,318 in fees — the entries roughly break even and the fee schedule does the killing. Honest losers recorded in each BACKTEST.md.
 
 No shared infra changes in this batch.
